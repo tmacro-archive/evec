@@ -1,0 +1,359 @@
+#!/usr/bin/env python
+
+__version__ = '0.0.1'
+
+import sys
+import argparse
+import itertools
+import os
+import os.path
+from collections import namedtuple
+import re
+import json
+
+# Avoid print shenanigans
+def _print(msg, end = '\n'):
+	sys.stdout.write(str(msg) + end)
+
+PY2 = sys.version_info[0] == 2
+
+# Sort out library differences for HTTP
+if PY2:
+	from cookielib import CookieJar
+	from urllib2 import Request, HTTPError, build_opener, HTTPCookieProcessor
+	from urlparse import urlparse
+else:
+	from urllib.request import Request, build_opener, HTTPCookieProcessor
+	from urllib.error import HTTPError
+	from urllib.parse import urlparse
+	from http.cookiejar import CookieJar
+
+# Normalize user input
+if not PY2:
+	raw_input = input
+
+# Alias ConfigParser for python2
+if PY2:
+	import ConfigParser as configparser
+else:
+	import configparser
+
+# Setup optional SOCKS proxy support
+try:
+	import socks
+	from sockshandler import SocksiPyHandler
+	SOCKS_SUPPORT = True
+except ImportError:
+	SOCKS_SUPPORT = False
+
+class Retry(Exception):
+	pass
+
+def retry(msg, sleep=None, retries=3):
+	def outer(f):
+		def inner(*args, **kwargs):
+			if retries == -1:
+				_retries = itertools.count(0)
+			else:
+				_retries = range(retries + 1)
+			for i in _retries:
+				try:
+					return f(*args, **kwargs)
+				except Retry as e:
+					_print(msg.format(
+						err=str(e.err),
+						retry=i,
+						limit=retries
+					))
+					if sleep:
+						time.sleep(sleep)
+		return inner
+	return outer
+
+class EveClient:
+	_BASE_URL = 'https://eve.devsca.com/{platform}/scality/{repo}/{fragment}'
+	_AUTH_FRAGMENT = 'auth/login?token={token}'
+	_API_FRAGMENT = 'api/v{ver}/{path}'
+
+	def __init__(self, platform, repo, token, http_proxy=None, socks_proxy=None):
+		self._platform = platform
+		self._repo = repo
+		self._token = token
+		self._authed = False
+		self._session = None
+		self._http_proxy = http_proxy
+		self._socks_proxy = socks_proxy
+
+	def _build_url(self, fragment, data={}):
+		url = self._BASE_URL.format(
+			platform=self._platform,
+			repo=self._repo,
+			fragment=fragment,
+		)
+		return url.format(**data)
+
+	@property
+	def session(self):
+		if self._session is None:
+			cj = CookieJar()
+			cookie_handler = HTTPCookieProcessor(cj)
+			proxy_handler = None
+			if self._http_proxy is not None:
+				proxy_handler = ProxyHandler({
+					self._http_proxy.proto: '{host}{port}'.format(
+						host=self._http_proxy.host,
+						port=self._http_proxy.port
+					)
+				})
+			elif self._socks_proxy:
+				proxy_handler = SocksiPyHandler(*self._socks_proxy)
+			handlers = [cookie_handler]
+			if proxy_handler is not None:
+				handlers.append(proxy_handler)
+			self._session = build_opener(*handlers)
+		return self._session
+
+	def _request(self,  method, url, data=None, headers=None):
+		req = Request(url, data=data)
+		if headers:
+			for (key, value) in headers.items():
+				req.add_header(key, value)
+		req.get_method = lambda: method.upper()
+		try:
+			res = self.session.open(req)
+		except HTTPError as err:
+			return err, None
+		return None, res
+
+	def _authenticate(self):
+		url = self._build_url(self._AUTH_FRAGMENT, {'token':self._token})
+		err, _ = self._request('GET', url)
+		if err:
+			_print('Failed to authenticate to Eve!')
+			raise err
+		self._authed = True
+		# _print('Authenticated to Eve successfully')
+
+	def _api_request(self, method, path, payload):
+		if not self._authed:
+			self._authenticate()
+		url = self._build_url(self._API_FRAGMENT, {'ver':2, 'path':path})
+		headers = {'Content-Type': 'application/json'}
+		data = json.dumps(payload)
+		if not PY2:
+			data = data.encode('utf-8')
+		return self._request(method, url, data=data, headers=headers)
+
+	def request(self, path, params={}, method='GET', is_json=True, rpc=None):
+		payload = {
+			'id': 999,
+			'jsonrpc': '2.0',
+			'params': params
+		}
+		if rpc is not None:
+			payload['method'] = rpc
+		err, resp = self._api_request(method, path, payload)
+		if err:
+			_print('Request to Eve failed with error!')
+			_print(str(err))
+			raise err
+		if is_json:
+			return json.load(resp)
+		else:
+			return resp.read()
+
+	def _get_build_url(self, build_number=None, build_id=None):
+		if build_number is not None:
+			return 'builders/bootstrap/builds/%s'%build_number
+		if build_id is not None:
+			return '/builds/%s'%build_id
+
+	def get_build(self, build_number=None, build_id=None):
+		if build_number is not None:
+			uri = 'builders/bootstrap/builds/%s'%build_number
+		if build_id is not None:
+			uri = '/builds/%s'%build_id
+		return self.request(uri)
+
+	def get_build_status(self, **kwargs):
+		resp = self.get_build(**kwargs)
+		if resp is not None:
+			build = resp.get('builds', [None])[0]
+			return build.get('state_string')
+
+	def restart_build(self, **kwargs):
+		url = self._get_build_url(**kwargs)
+		resp = self.request(url, method='POST', rpc='rebuild')
+		brid = resp.get('result', [None])[0]
+		return brid
+
+def prompt(desc, default='', end=': '):
+	_default = ' [%s]'%default
+	try:
+		return raw_input('%s%s%s'%(
+			desc,
+			_default,
+			end
+		))
+	except EOFError:
+		sys.exit(1)
+
+DEFAULT_CONFIG_DIR = os.path.expanduser('~/.eve/')
+DEFAULT_CONFIG_PATH = DEFAULT_CONFIG_DIR + 'eve.ini'
+DEFAULT_COOKIE_PATH = DEFAULT_CONFIG_DIR + 'cookies.txt'
+def load_config():
+	parser = configparser.ConfigParser()
+	parser.read(DEFAULT_CONFIG_PATH)
+	return parser
+
+def update_field(conf, section, key, msg):
+	existing = conf.get(section, key, fallback='')
+	new = prompt(msg, existing)
+	changed = False
+	if new == '""' or new == "''":
+		if conf.has_option(section, key):
+			conf.remove_option(section, key)
+			changed = True
+	elif new:
+		changed = True
+		if section in conf:
+			conf[section][key] = new
+		else:
+			conf[section] = {key:new}
+	return changed, conf
+
+CONFIG_SCHEMA = {
+	'defaults': {
+		'repo': 'Default repository to operate on. (Can be useful if you work mainly on one project)',
+		'platform': 'Default platform to use. "github" or "bitbucket" (Can be useful if you use only one platform)',
+		'socks_proxy': 'Use a SOCKS proxy by default. Proxy host must be in the format socks(4|5)://example.com:8080',
+		'http_proxy': 'Use a HTTP proxy by default. Proxy host must be in the format http(s)://example.com:8080',
+	},
+	'github': {
+		'token': 'Github Personal Access Token (For Github based projects)',
+	}
+}
+
+def configure(args, conf):
+	if not os.path.isdir(DEFAULT_CONFIG_DIR):
+		os.makedirs(DEFAULT_CONFIG_DIR) # mode 0640
+	changed = False
+	for (section, options) in CONFIG_SCHEMA.items():
+		for (option, msg) in options.items():
+			_changed, conf = update_field(conf, section, option, msg)
+			if _changed:
+				changed = True
+	# conf = update_field(conf, 'defaults', 'platform')
+	# conf = update_field(conf, 'defaults', 'repo')
+	if changed:
+		with open(DEFAULT_CONFIG_PATH, 'w') as f:
+			conf.write(f)
+
+SOCKSConfig = namedtuple('SOCKSConfig', ['version', 'host', 'port'])
+HTTPConfig = namedtuple('HTTPConfig', ['proto', 'host', 'port'])
+
+# Format socks<version>://<host>[:port]
+SOCKS_FORMAT = r'^socks(4|5)$'
+_socks_fmt_err = 'SOCKS proxy host must be in the format socks(4|5)://example.com:8080'
+def parse_socks(line):
+	if not SOCKS_SUPPORT:
+		_print('You must install PySocks to enable SOCKS proxy support.')
+		_print('With pip: pip install PySocks --user')
+		sys.exit(1)
+	parsed = urlparse(line)
+	match = re.match(SOCKS_FORMAT, parsed.scheme)
+	if not match:
+		_print(_socks_fmt_err)
+		sys.exit(1)
+	version = getattr(socks, 'SOCKS%s'%match.group(1))
+	try:
+		host, port = parsed.netloc.split(':')
+	except ValueError:
+		_print(_socks_fmt_err)
+		sys.exit(1)
+	return SOCKSConfig(version, host, int(port))
+
+HTTP_FORMAT = r'^https?$'
+_http_fmt_err = 'HTTP proxy host must be in the format http(s)://example.com:8080'
+def parse_http(line):
+	parsed = urlparse(line)
+	match = re.match(HTTP_FORMAT, parsed.scheme)
+	if not match:
+		_print(_http_fmt_err)
+		sys.exit(1)
+	try:
+		host, port = parsed.netloc.split(':')
+	except ValueError:
+		_print(_http_fmt_err)
+		sys.exit(1)
+	proto = parsed.scheme
+	return HTTPConfig(proto, host, int(port))
+
+def get_args(conf):
+	parser = argparse.ArgumentParser(
+		prog=sys.argv[0],
+		description='CLI interface for Eve')
+	parser.add_argument('-p', '--platform', action='store')
+	parser.add_argument('-r', '--repo', action='store')
+	parser.add_argument('--socks-proxy', action='store', type=parse_socks,
+		help='Direct traffic through a SOCKS proxy. Must be in the format socks(4|5)://host:port')
+	parser.add_argument('--http-proxy', action='store', type=parse_http,
+		help='Direct traffic through a HTTP proxy. Must be in the format http(s)://host:port')
+	if conf.has_section('defaults'):
+		for (key, value) in conf.items('defaults'):
+			parser.set_defaults(**{key:value})
+	if conf.has_option('defaults', 'platform'):
+		platform = conf.get('defaults', 'platform')
+		if conf.has_option(platform, 'token'):
+			parser.set_defaults(token=conf.get(platform, 'token'))
+	subparsers = parser.add_subparsers(title='subcommands')
+
+	parser_configure = subparsers.add_parser('configure', help='Bootstrap CLI configuration')
+	# parser_
+	parser_configure.set_defaults(func='configure')
+
+	parser_status = subparsers.add_parser('status', help='Get status of a Eve build')
+	parser_status.add_argument('build', action='store', type=int, help='Build number to query')
+	parser_status.set_defaults(func=get_build_status)
+
+	parser_restart = subparsers.add_parser('restart', help='Restart an Eve build')
+	parser_restart.add_argument('build', action='store', type=int, help='Build number to restart')
+	parser_restart.set_defaults(func=restart_build)
+
+	parser_force = subparsers.add_parser('force', help='Force start an Eve build')
+	return parser.parse_args()
+
+_client_info_error = 'You must define a {var} by using the --{var} flag or by configuring a default'
+def with_client(f):
+	def inner(args):
+		if args.platform is None:
+			_print(_client_info_error.format(var='platform'))
+			sys.exit(1)
+		if args.repo is None:
+			_print(_client_info_error.format(var='repo'))
+			sys.exit(1)
+		if args.token is None:
+			_print(_client_info_error.format(var='token'))
+			sys.exit(1)
+		eve_client = EveClient(args.platform, args.repo, args.token, http_proxy=args.http_proxy, socks_proxy=args.socks_proxy)
+		return f(eve_client, args)
+	return inner
+
+
+@with_client
+def get_build_status(eve, args):
+	_print(eve.get_build_status(build_number=args.build))
+
+@with_client
+def restart_build(eve, args):
+	_print('Restarted build #{}'.format(
+		eve.restart_build(build_number=args.build)
+	))
+
+if __name__ == "__main__":
+	conf = load_config()
+	args = get_args(conf)
+	if args.func == 'configure':
+		configure(args, conf)
+	else:
+		args.func(args)
