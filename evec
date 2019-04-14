@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
-__version__ = '0.0.1'
+__version__ = '0.0.2'
+
+ENABLE_VERSION_CHECK = True
 
 import sys
 import argparse
@@ -10,6 +12,8 @@ import os.path
 from collections import namedtuple
 import re
 import json
+import tempfile
+import difflib
 
 # Avoid print shenanigans
 def _print(msg, end = '\n'):
@@ -20,10 +24,10 @@ PY2 = sys.version_info[0] == 2
 # Sort out library differences for HTTP
 if PY2:
 	from cookielib import CookieJar
-	from urllib2 import Request, HTTPError, build_opener, HTTPCookieProcessor
+	from urllib2 import Request, HTTPError, build_opener, HTTPCookieProcessor, urlopen
 	from urlparse import urlparse
 else:
-	from urllib.request import Request, build_opener, HTTPCookieProcessor
+	from urllib.request import Request, build_opener, HTTPCookieProcessor, urlopen
 	from urllib.error import HTTPError
 	from urllib.parse import urlparse
 	from http.cookiejar import CookieJar
@@ -45,6 +49,74 @@ try:
 	SOCKS_SUPPORT = True
 except ImportError:
 	SOCKS_SUPPORT = False
+
+# Update these if you fork this script so you can get auto updates!
+GIST_BASE_URL = 'https://gist.githubusercontent.com/{user}/{gist}/raw/{file}'
+GIST_USER = 'tmacro'
+GIST_ID = '6eb9020d9feec8c4e36b845455a942aa'
+GIST_VERSION_FILE = 'VERSION'
+GIST_SCRIPT_FILE = 'evec'
+GIST_VERSION_URL = GIST_BASE_URL.format(
+	user=GIST_USER,
+	gist=GIST_ID,
+	file=GIST_VERSION_FILE
+)
+GIST_SCRIPT_URL = GIST_BASE_URL.format(
+	user=GIST_USER,
+	gist=GIST_ID,
+	file=GIST_SCRIPT_FILE
+)
+
+def _parse_version(ver):
+	major, minor, patch = ver.split('.')
+	return int(major), int(minor), int(patch)
+
+def _check_version():
+	if not ENABLE_VERSION_CHECK:
+		return __version__
+	try:
+		res = urlopen(GIST_VERSION_URL)
+		latest = res.read()
+		if not PY2:
+			latest = latest.decode('utf-8')
+		return latest
+	except HTTPError:
+		return __version__ # If we get an error, just report we're updated
+
+_latest_version = _check_version()
+if _parse_version(__version__) < _parse_version(_latest_version):
+	_print('A new version of {} is available.'.format(sys.argv[0]))
+	ans = raw_input('Would you like to update to {}? [y,N]: '.format(_latest_version))
+	if ans == 'y' or ans == 'Y':
+		try:
+			res = urlopen(GIST_SCRIPT_URL)
+			new_script = res.readlines()
+			if not PY2:
+				new_script = [l.decode('utf-8') for l in new_script]
+			real_script_path = os.path.realpath(__file__)
+			ans = raw_input('Would you like to view the diff? [Y,n]: ')
+			if ans == 'y' or ans == 'Y' or ans == '':
+				with open(real_script_path) as f:
+					current_script = f.readlines()
+				version_tmpl = 'evec version: %s'
+				for line in difflib.unified_diff(
+						current_script,
+						new_script,
+						fromfile=version_tmpl%__version__,
+						tofile=version_tmpl%_latest_version):
+					_print(line, end='')
+				ans = raw_input('Approve? [y,N]: ')
+				if ans != 'y' and ans != 'Y':
+					_print('Aborting update.')
+					sys.exit(0)
+			with open(real_script_path, 'w') as f:
+				f.write(''.join(new_script))
+			sys.exit(0)
+		except Exception as e:
+			_print('Update failed!')
+			_print(e)
+			sys.exit(1)
+
 
 class Retry(Exception):
 	pass
@@ -322,6 +394,7 @@ def get_args(conf):
 
 	parser_force = subparsers.add_parser('force', help='Force start an Eve build')
 	return parser.parse_args()
+
 
 _client_info_error = 'You must define a {var} by using the --{var} flag or by configuring a default'
 def with_client(f):
