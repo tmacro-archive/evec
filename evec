@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-__version__ = '0.0.5'
+__version__ = '0.0.6'
 
 ENABLE_VERSION_CHECK = True
 
@@ -194,8 +194,14 @@ class EveClient:
 			return err, None
 		return None, res
 
+	def _has_eve_cookie(self, cj):
+		for cookie in cj:
+			if cookie.domain == 'eve.devsca.com':
+				return True
+		return False
+
 	def _authenticate(self):
-		if self._cj is not None:
+		if self._has_eve_cookie(self._cj):
 			return
 		url = self._build_url(self._AUTH_FRAGMENT, {'token':self._token})
 		err, _ = self._request('GET', url)
@@ -203,9 +209,9 @@ class EveClient:
 			_print('Failed to authenticate to Eve!')
 			raise err
 		self._authed = True
-		self._cj.save()
-		
-		# _print('Authenticated to Eve successfully')
+		if self._cj is not None:
+			self._cj.save(ignore_discard=True)
+		_print('Authenticated to Eve successfully')
 
 	def _api_request(self, method, path, payload):
 		if not self._authed:
@@ -254,7 +260,6 @@ class EveClient:
 	def get_build_status(self, **kwargs):
 		resp = self.get_build(**kwargs)
 		if resp is not None:
-			print(resp)
 			build = resp.get('builds', [None])[0]
 			return build.get('state_string')
 
@@ -374,7 +379,7 @@ CONFIG_SCHEMA = {
 		'repo': 'Default repository to operate on. (Can be useful if you work mainly on one project)',
 		'platform': 'Default platform to use. "github" or "bitbucket" (Can be useful if you use only one platform)',
 		'proxy': 'Use a SOCKS or HTTP(s) proxy by default. Proxy host must be in the format socks(4|5)://example.com:8080 or http(s)://example.com:8080',
-		'persistent_cookies': ('Enable persistent cookies to prevt logging into Eve every time', ask_y_n) 
+		'persistent_cookies': ('Enable persistent cookies to prevt logging into Eve every time', ask_y_n)
 	},
 	'github': {
 		'token': 'Github Personal Access Token (For Github based projects)',
@@ -458,7 +463,7 @@ def proxy(value):
 		_print(_http_fmt_err)
 		_print(_socks_fmt_err)
 		sys.exit(1)
-	
+
 
 
 def get_args(conf):
@@ -525,7 +530,7 @@ def with_client(f):
 				args.persistent_cookies.lower() in TRUTHY:
 				cj = LWPCookieJar(DEFAULT_COOKIE_PATH)
 				if os.path.exists(DEFAULT_COOKIE_PATH):
-					cj.load()
+					cj.load(ignore_discard=True)
 		else:
 			cj = None
 		eve_client = EveClient(args.platform, args.repo, args.token, proxy=args.proxy, cj=cj)
