@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-__version__ = '0.0.6'
+__version__ = '0.0.7'
 
 ENABLE_VERSION_CHECK = True
 
@@ -358,7 +358,6 @@ def update_field(conf, section, key, msg, prpt=None):
 	existing = conf.get(section, key, fallback='')
 	if prpt:
 		new = str(prpt(msg, existing))
-		print(new)
 	else:
 		new = prompt(msg, existing)
 	changed = False
@@ -468,7 +467,7 @@ def proxy(value):
 
 def get_args(conf):
 	parser = argparse.ArgumentParser(
-		prog=sys.argv[0],
+		prog=os.path.basename(sys.argv[0]),
 		description='CLI interface for Eve')
 	parser.add_argument('-p', '--platform', action='store')
 	parser.add_argument('-r', '--repo', action='store')
@@ -503,10 +502,11 @@ def get_args(conf):
 	parser_watch.set_defaults(func=watch_build)
 
 	parser_force = subparsers.add_parser('force', help='Force start an Eve build')
-	parser_restart.add_argument('-b', '--branch', action='store', help='Build from this branch instead of the default.')
-	parser_restart.add_argument('-s', '--stage', action='store', help='Start at this stage instead ff "premerge"')
+	parser_force.add_argument('-b', '--branch', action='store', help='Build from this branch instead of the default.')
+	parser_force.add_argument('-s', '--stage', action='store', help='Start this stage instead of "pre-merge"', default='pre-merge')
+	parser_force.add_argument('-w', '--wait', action='store_true', help='Wait for the build to start, and report its build number.')
 	# parser_restart.add_argument('-e', '--extra', action='append', type=custom_prop, help='Set custom properties on the build', metavar='VALUE')
-	parser_restart.set_defaults(func=force_start)
+	parser_force.set_defaults(func=force_start)
 	args = parser.parse_args()
 	if args.func is None:
 		return parser.parse_args(['--help'])
@@ -577,8 +577,29 @@ def watch_build(eve, args):
 		time.sleep(300)
 
 @with_client
-def force_start(args):
-	pass
+def force_start(eve, args):
+	build_request_id = eve.force_start(args.branch, args.stage)
+	if not args.wait:
+		status_info = dict(rtype='build request', number=build_request_id)
+	else:
+		while True:
+			status = eve.get_build(build_request_id=build_request_id)
+			builds = status.get('builds')
+			if builds:
+				buildnum = builds[0]['properties']['buildnumber'][0]
+				# buildnum = build['properties']['buildnumber'][0]
+				status_info = dict(rtype='build', number=buildnum)
+				break
+	status_info['stage'] = args.stage
+	status_info['branch'] = args.branch
+	_print(
+		'Created {rtype} #{number} at stage {stage} on branch {branch}'.format(
+			**status_info
+		)
+	)
+
+
+
 
 if __name__ == "__main__":
 	conf = load_config()
