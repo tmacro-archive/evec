@@ -159,6 +159,7 @@ class EveClient:
 		self._session = None
 		self._proxy = proxy
 		self._cj = cj
+		self._failed_auth = False
 
 	def _build_url(self, fragment, data={}):
 		url = self._BASE_URL.format(
@@ -191,6 +192,10 @@ class EveClient:
 		try:
 			res = self.session.open(req)
 		except HTTPError as err:
+			if err.code == 403 and self._cj is not None and not self._failed_auth:
+				self._failed_auth = True
+				self._authenticate(force=True)
+				return self._request(method, url, data, headers)
 			return err, None
 		return None, res
 
@@ -200,8 +205,8 @@ class EveClient:
 				return True
 		return False
 
-	def _authenticate(self):
-		if self._has_eve_cookie(self._cj):
+	def _authenticate(self, force=False):
+		if not force and self._has_eve_cookie(self._cj):
 			return
 		url = self._build_url(self._AUTH_FRAGMENT, {'token':self._token})
 		err, _ = self._request('GET', url)
@@ -280,6 +285,11 @@ class EveClient:
 			))
 		brid = resp.get('result', [None])[0]
 		return brid
+
+	def list_builds(self, include_complete=False):
+		return self.request('builds?complete={ic}&order=-started_at'.format(
+			ic=str(include_complete).lower()
+		))
 
 # def trigger_build(self):
 #         ok, resp = self.request(
@@ -487,6 +497,9 @@ def get_args(conf):
 	parser_configure = subparsers.add_parser('configure', help='Bootstrap CLI configuration')
 	parser_configure.set_defaults(func=partial(configure, conf))
 
+	parser_builds = subparsers.add_parser('builds', help='List all builds and statuses.')
+	parser_builds.set_defaults(func=list_builds)
+
 	parser_status = subparsers.add_parser('status', help='Get status of a Eve build')
 	parser_status.add_argument('build', action='store', type=int, help='Build number to query')
 	parser_status.add_argument('-w', '--wait', action='store_true', help='Wait for build to finish if incomplete.')
@@ -598,7 +611,9 @@ def force_start(eve, args):
 		)
 	)
 
-
+@with_client
+def list_builds(eve, args):
+	_print(eve.list_builds())
 
 
 if __name__ == "__main__":
