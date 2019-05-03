@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-__version__ = '0.0.7'
+__version__ = '0.1.0'
 
 ENABLE_VERSION_CHECK = True
 
@@ -16,6 +16,7 @@ import tempfile
 import difflib
 import time
 from functools import partial
+from datetime import datetime
 
 # Avoid print shenanigans
 def _print(msg, end = '\n'):
@@ -286,10 +287,20 @@ class EveClient:
 		brid = resp.get('result', [None])[0]
 		return brid
 
-	def list_builds(self, include_complete=False):
-		return self.request('builds?complete={ic}&order=-started_at'.format(
-			ic=str(include_complete).lower()
-		))
+	def list_builds(self, include_complete=False, stage=None):
+		args = [
+			'complete=%s'%str(include_complete,).lower(),
+			'order=-started_at',
+			'property=stage_name',
+			'property=buildnumber'
+		]
+		def stage_filter(build):
+			return stage is None or \
+				build['properties']['stage_name'][0] == stage
+				
+		for build in filter(stage_filter, 
+			self.request('builds?{args}'.format(args='&'.join(args)))['builds']):
+			yield build
 
 # def trigger_build(self):
 #         ok, resp = self.request(
@@ -611,9 +622,18 @@ def force_start(eve, args):
 		)
 	)
 
+
+STAGE_FMT = '#{number} started at: {start} status: {status}'
 @with_client
 def list_builds(eve, args):
-	_print(eve.list_builds())
+	for build in eve.list_builds(stage='bootstrap'):
+		ts = datetime.utcfromtimestamp(
+			build['started_at']).isoformat()
+		_print(STAGE_FMT.format(
+			number=build['number'],
+			start=ts,
+			status=build['state_string']
+		))
 
 
 if __name__ == "__main__":
