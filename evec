@@ -16,7 +16,8 @@ import tempfile
 import difflib
 import time
 from functools import partial
-from datetime import datetime
+from datetime import datetime, timedelta
+import math
 
 # Avoid print shenanigans
 def _print(msg, end = '\n'):
@@ -267,7 +268,7 @@ class EveClient:
 		resp = self.get_build(**kwargs)
 		if resp is not None:
 			build = resp.get('builds', [None])[0]
-			return build.get('state_string')
+			return build
 
 	def restart_build(self, **kwargs):
 		url = self._get_build_url(**kwargs)
@@ -301,6 +302,21 @@ class EveClient:
 		for build in filter(stage_filter,
 			self.request('builds?{args}'.format(args='&'.join(args)))['builds']):
 			yield build
+
+	# Will poll a build, and yield its status untils it's complete
+	# Will gracefully follow a build request to a build once its started
+	def poll_build(self, interval=30, **kwargs):
+		while True:
+			status = self.get_build(**kwargs)
+			builds = status.get('builds')
+			if builds:
+				_status = builds[0]
+				yield _status
+				if _status.get('complete'):
+					break
+				buildnum = builds[0]['properties']['buildnumber'][0]
+				kwargs = dict(build_number=buildnum)
+			time.sleep(interval)
 
 # def trigger_build(self):
 #         ok, resp = self.request(
@@ -519,6 +535,7 @@ def get_args(conf):
 	parser_status = subparsers.add_parser('status', help='Get status of a Eve build')
 	parser_status.add_argument('build', action='store', type=int, help='Build number to query')
 	parser_status.add_argument('-w', '--wait', action='store_true', help='Wait for build to finish if incomplete.')
+	parser_status.add_argument('-v', '--verbose', action='store_true', help='Output more detailed build information.')
 	parser_status.set_defaults(func=get_build_status)
 
 	parser_restart = subparsers.add_parser('restart', help='Restart an Eve build')
@@ -531,7 +548,7 @@ def get_args(conf):
 	parser_watch.set_defaults(func=watch_build)
 
 	parser_force = subparsers.add_parser('force', help='Force start an Eve build')
-	parser_force.add_argument('-b', '--branch', action='store', help='Build from this branch instead of the default.')
+	parser_force.add_argument('-b', '--branch', action='store', help='Build from this branch instead of the default.', required=True)
 	parser_force.add_argument('-s', '--stage', action='store', help='Start this stage instead of "pre-merge"', default='pre-merge')
 	parser_force.add_argument('-w', '--wait', action='store_true', help='Wait for the build to start, and report its build number.')
 	# parser_restart.add_argument('-e', '--extra', action='append', type=custom_prop, help='Set custom properties on the build', metavar='VALUE')
@@ -567,17 +584,48 @@ def with_client(f):
 		return f(eve_client, args)
 	return inner
 
-
+STATUS_OPTIONS = [
+	'#{number}:\t\t{status}',
+	'Complete:\t{complete}',
+	'Duration:\t{duration}',
+	'Started:\t{started}',
+	'Finished:\t{finished}',
+	'Passed:\t\t{passed}'
+	]
 @with_client
 def get_build_status(eve, args):
-	while True:
-		status = eve.get_build_status(build_number=args.build)
-		if status is not None:
-			_print(status)
-			break
-		if not args.wait:
-			break
-		time.sleep(5)
+	def prtr(sts):
+		tmpl = STATUS_OPTIONS[0]
+		kwargs = {
+			'number': sts['number'],
+			'status': sts['state_string']
+		}
+		if args.verbose:
+			kwargs['complete'] = str(sts['complete']).upper()
+			kwargs['started'] = datetime.utcfromtimestamp(
+										sts['started_at']).isoformat()
+			if sts['complete']:
+				tmpl = '\n'.join(STATUS_OPTIONS)
+				kwargs['finished'] = datetime.utcfromtimestamp(
+										sts['complete_at']).isoformat()
+				kwargs['duration'] = datetime.utcfromtimestamp(sts['complete_at']) - \
+										datetime.utcfromtimestamp(sts['started_at'])
+				kwargs['passed'] = str(sts['results'] == 0).upper()
+			else:
+				tmpl = '\n'.join(STATUS_OPTIONS[:4])
+				kwargs['duration'] = timedelta(seconds=math.ceil((datetime.utcnow() - \
+										datetime.utcfromtimestamp(sts['started_at'])).total_seconds()))
+		_print(tmpl.format(**kwargs))
+	first_run = True
+	for status in eve.poll_build(build_number=args.build, interval=1):
+		if args.wait:
+			if status['complete']:
+				return prtr(status)
+			elif first_run:
+				first_run = False
+				_print('Waiting for build #%s to finish...'%status['number'])
+		else:
+			return prtr(status)
 
 @with_client
 def restart_build(eve, args):
@@ -612,8 +660,10 @@ def force_start(eve, args):
 	if not args.wait:
 		status_info = dict(rtype='build request', number=build_request_id)
 	else:
-		while True:
-			status = eve.get_build(build_request_id=build_request_id)
+		for status in eve.poll_build(build_request_id=build_request_id, interval=5):
+			print(status)
+		# while True:
+		# 	status = eve.get_build(build_request_id=build_request_id)
 			builds = status.get('builds')
 			if builds:
 				buildnum = builds[0]['properties']['buildnumber'][0]
