@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 
 ENABLE_VERSION_CHECK = True
 
@@ -297,8 +297,8 @@ class EveClient:
 		def stage_filter(build):
 			return stage is None or \
 				build['properties']['stage_name'][0] == stage
-				
-		for build in filter(stage_filter, 
+
+		for build in filter(stage_filter,
 			self.request('builds?{args}'.format(args='&'.join(args)))['builds']):
 			yield build
 
@@ -375,8 +375,15 @@ def load_config():
 	parser.read(DEFAULT_CONFIG_PATH)
 	return parser
 
+def safe_get(conf, section, key, default=''):
+	try:
+		val = conf.get(section, key)
+		return val
+	except configparser.NoOptionError:
+		return default
+
 def update_field(conf, section, key, msg, prpt=None):
-	existing = conf.get(section, key, fallback='')
+	existing = safe_get(conf, section , key)
 	if prpt:
 		new = str(prpt(msg, existing))
 	else:
@@ -388,8 +395,8 @@ def update_field(conf, section, key, msg, prpt=None):
 			changed = True
 	elif new is not None:
 		changed = True
-		if section in conf:
-			conf[section][key] = new
+		if conf.has_section(section):
+			conf.set(section, key, new)
 		else:
 			conf[section] = {key:new}
 	return changed, conf
@@ -410,6 +417,7 @@ def configure(conf, args):
 	if not os.path.isdir(DEFAULT_CONFIG_DIR):
 		os.makedirs(DEFAULT_CONFIG_DIR) # mode 0640
 	changed = False
+	_print('test')
 	for (section, options) in CONFIG_SCHEMA.items():
 		for (option, msg) in options.items():
 			if isinstance(msg, tuple):
@@ -484,8 +492,6 @@ def proxy(value):
 		_print(_socks_fmt_err)
 		sys.exit(1)
 
-
-
 def get_args(conf):
 	parser = argparse.ArgumentParser(
 		prog=os.path.basename(sys.argv[0]),
@@ -495,7 +501,6 @@ def get_args(conf):
 	parser.add_argument('--proxy', action='store', type=proxy,
 		help='Direct traffic through a SOCKS of HTTP proxy. Must be in the format socks(4|5)://host:port or http(s)://host:port')
 	parser.add_argument('--no-cookies', action='store_false', dest='persistent_cookies', help='Disable persistent cookies for this session')
-	parser.set_defaults(func=None)
 	if conf.has_section('defaults'):
 		for (key, value) in conf.items('defaults'):
 			parser.set_defaults(**{key:value})
@@ -531,8 +536,9 @@ def get_args(conf):
 	parser_force.add_argument('-w', '--wait', action='store_true', help='Wait for the build to start, and report its build number.')
 	# parser_restart.add_argument('-e', '--extra', action='append', type=custom_prop, help='Set custom properties on the build', metavar='VALUE')
 	parser_force.set_defaults(func=force_start)
+
 	args = parser.parse_args()
-	if args.func is None:
+	if not hasattr(args, 'func'):
 		return parser.parse_args(['--help'])
 	return args
 
