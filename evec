@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-__version__ = '0.1.1'
+__version__ = '0.2.0'
 
 ENABLE_VERSION_CHECK = True
 
@@ -276,14 +276,15 @@ class EveClient:
 		brid = resp.get('result', [None])[0]
 		return brid
 
-	def force_start(self, branch=None, stage='pre-merge'):
+	def force_start(self, branch=None, stage='pre-merge', extra_props={}):
 		resp = self.request(
 			'forceschedulers/force',
 			method='POST',
 			rpc='force',
 			params = dict(
 				branch=branch,
-				force_stage=stage
+				force_stage=stage,
+				**extra_props
 			))
 		brid = resp.get('result', [None])[0]
 		return brid
@@ -321,20 +322,6 @@ class EveClient:
 				_print('Waiting for build to start...')
 				first_run = False
 			time.sleep(interval)
-
-
-# 	params=dict(
-# 		branch=BUILD_BRANCH,
-# 		force_stage=BUILD_STAGE,
-# 		prop00_name='report_build_number',
-# 		prop00_value=BUILD_NUMBER,
-# 		prop01_name='report_build_name',
-# 		prop01_value=BUILD_NAME,
-# 		prop02_name='report_build_msg_ts',
-# 		prop02_value=BUILD_MSG_TS,
-# 		prop03_name='crosspost-to-hippo',
-# 		prop03_value=str(CROSSPOST_TO_HIPPO)
-# 	)
 
 def prompt(desc, default='', end=': '):
 	_default = ' [%s]'%default
@@ -495,6 +482,12 @@ def proxy(value):
 		_print(_socks_fmt_err)
 		sys.exit(1)
 
+def custom_prop(value):
+	if not '=' in value:
+		_print('Custom properties must be in the format: myprop=value')
+		sys.exit(1)
+	return value.split('=')
+
 def get_args(conf):
 	parser = argparse.ArgumentParser(
 		prog=os.path.basename(sys.argv[0]),
@@ -555,7 +548,7 @@ def get_args(conf):
 	parser_force.add_argument('-w', '--wait', action='store_true', help='Wait for the build to start, and report its build number.')
 	parser_force.add_argument('-f', '--follow', action='store_true', help='Wait for the build to finish, and report its status')
 	parser_force.add_argument('-v', '--verbose', action='store_true', help='Output more detailed build information.')
-	# parser_restart.add_argument('-e', '--extra', action='append', type=custom_prop, help='Set custom properties on the build', metavar='VALUE')
+	parser_force.add_argument('-e', '--extra', action='append', type=custom_prop, help='Set custom properties on the build', metavar='VALUE')
 	parser_force.set_defaults(func=force_start)
 
 	args = parser.parse_args()
@@ -675,7 +668,11 @@ def watch_build(eve, args):
 @with_client
 @monitor_build
 def force_start(eve, args):
-	build_request_id = eve.force_start(args.branch, args.stage)
+	props = {}
+	for i, (name, value) in enumerate(args.extra):
+		props['prop0%i_name'%i] = name
+		props['prop0%i_value'%i] = value
+	build_request_id = eve.force_start(args.branch, args.stage, extra_props=props)
 	if not args.wait:
 		status_info = dict(rtype='', number=build_request_id)
 		_print(
