@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-__version__ = '0.2.0'
+__version__ = '0.2.1'
 
 ENABLE_VERSION_CHECK = True
 
@@ -548,7 +548,7 @@ def get_args(conf):
 	parser_force.add_argument('-w', '--wait', action='store_true', help='Wait for the build to start, and report its build number.')
 	parser_force.add_argument('-f', '--follow', action='store_true', help='Wait for the build to finish, and report its status')
 	parser_force.add_argument('-v', '--verbose', action='store_true', help='Output more detailed build information.')
-	parser_force.add_argument('-e', '--extra', action='append', type=custom_prop, help='Set custom properties on the build', metavar='VALUE')
+	parser_force.add_argument('-e', '--extra', action='append', type=custom_prop, help='Set custom properties on the build', metavar='VALUE', default=[])
 	parser_force.set_defaults(func=force_start)
 
 	args = parser.parse_args()
@@ -653,11 +653,11 @@ def watch_build(eve, args):
 		for status in eve.poll_build(**current_build):
 			if status.get('complete'):
 				log_status(status, args)
-				if _status.get('state_string') == 'build successful':
-					break
+				if status.get('state_string') == 'build successful':
+					return
 				else:
 					if retries >= args.retries:
-						break
+						return
 					retries += 1
 					_print('Restarting build... ({}/{})'.format(
 						retries, args.retries
