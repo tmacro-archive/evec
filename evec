@@ -202,13 +202,13 @@ class EveSession:
     _AUTH_FRAGMENT = 'auth/login?token={token}'
     _API_FRAGMENT = 'api/v{ver}/{path}'
 
-    def __init__(self, platform, repo, cookiejar, proxy=None):
+    def __init__(self, platform, repo, cookiejar, persistent_cookies=False, proxy=None):
         self._session = None
         self._platform = platform
         self._repo = repo
         self._cookiejar = cookiejar
         self._proxy = proxy
-        self._authed = False
+        self._persistent_cookies = persistent_cookies
 
     @property
     def token(self):
@@ -232,46 +232,41 @@ class EveSession:
         )
         return url.format(**data)
 
-    def _has_eve_cookie(self):
-        for cookie in self._cookiejar:
-            if cookie.domain == 'eve.devsca.com':
-                return True
-        return False
-
-    def _request(self,  method, url, data=None, headers=None, session=None):
+    def _request(self,  method, url, data=None, headers=None, session=None, _failed=False, _no_auth=False):
         session = session if session is not None else self.session
         req = Request(url, data=data)
         if headers:
             for (key, value) in headers.items():
                 req.add_header(key, value)
         req.get_method = lambda: method.upper()
+        # If we're not saving cookies, we need to auth every time
+        # If _failed is set then we've gotten a 403 and need to
+        if not _no_auth and not self._persistent_cookies or _failed:
+            self._authenticate()
         try:
             res = session.open(req)
         except HTTPError as err:
-            if err.code == 403 and self._cookiejar is not None and not self._failed_auth:
-                self._failed_auth = True
-                self._authenticate(force=True)
-                return self._request(method, url, data, headers)
-            return err, None
+            if err.code == 403:
+                if not self._persistent_cookies or _failed:
+                    return err, None
+                return self._request(method, url, data, headers, session, _failed=True)
+            return err, None                
         return None, res
 
-    def _authenticate(self, force=False):
-        if not force and self._has_eve_cookie():
-            return
+    def _authenticate(self):
         url = self._build_url(self._AUTH_FRAGMENT, {'token':self.token})
-        err, _ = self._request('GET', url)
+        err, _ = self._request('GET', url, _no_auth=True)
         if err:
             _print('Failed to authenticate to Eve!')
             raise err
-        self._authed = True
-        if self._cookiejar is not None:
+        if self._cookiejar is not None and self._persistent_cookies:
             self._cookiejar.save(ignore_discard=True)
         _print('Authenticated to Eve successfully')
 
     def _api_request(self, method, path, payload):
-        if not self._authed:
-            self._authenticate()
         url = self._build_url(self._API_FRAGMENT, {'ver':2, 'path':path})
+        print(url)
+
         headers = {'Content-Type': 'application/json'}
         data = json.dumps(payload)
         if not PY2:
@@ -320,6 +315,7 @@ class BitbucketEveSession(EveSession):
         self._username = username
         self._password = password
         self._consumer_id = consumer_id
+        self._token = None
 
     def _get_token(self):
         """Get an access token from Bitbucket.
@@ -334,15 +330,14 @@ class BitbucketEveSession(EveSession):
 
         """
         _print('Getting Bitbucket access token...')
-        print(self.username, self.password, self.consumer_id)
         if PY2:
-            base64auth = base64.b64encode('%s:%s' % (self.username, self.password))
+            base64auth = base64.b64encode('%s:%s' % (self._username, self._password))
         else:
-            base64auth = base64.b64encode(bytes('%s:%s' % (self.username, self.password), 'utf-8'))
+            base64auth = base64.b64encode(bytes('%s:%s' % (self._username, self._password), 'utf-8'))
             base64auth = base64auth.decode('utf-8')
         opener = build_opener(self.AuthCodeRedirectHandler)
         auth_url = ('https://bitbucket.org/site/oauth2/authorize'
-                    '?client_id=%s&response_type=token' % self.consumer_id)
+                    '?client_id=%s&response_type=token' % self._consumer_id)
         req = Request(auth_url)
         req.add_header("Authorization", "Basic %s" % base64auth)
         try:
@@ -362,109 +357,11 @@ class BitbucketEveSession(EveSession):
         return self._token
 
 class EveClient:
-    # _BASE_URL = 'https://eve.devsca.com/{platform}/scality/{repo}/{fragment}'
-    # _AUTH_FRAGMENT = 'auth/login?token={token}'
-    # _API_FRAGMENT = 'api/v{ver}/{path}'
     def __init__(self, session):
         self._session = session
 
-    # def __init__(self, platform, repo, token=None, proxy=None, cj=None,
-    #              username=None, password=None, consumer_id=None):
-    #     self._platform = platform
-    #     self._repo = repo
-    #     self._token = token
-    #     self._authed = False
-    #     self._session = None
-    #     self._proxy = proxy
-    #     self._cj = cj
-    #     self._failed_auth = False
-
-    # def _build_url(self, fragment, data={}):
-    #     url = self._BASE_URL.format(
-    #         platform=self._platform,
-    #         repo=self._repo,
-    #         fragment=fragment,
-    #     )
-    #     return url.format(**data)
-
-    # @property
-    # def session(self):
-    #     if self._session is None:
-    #         if self._cj is None:
-    #             cj = CookieJar()
-    #         else:
-    #             cj = self._cj
-    #         cookie_handler = HTTPCookieProcessor(cj)
-    #         handlers = [cookie_handler]
-    #         if self._proxy is not None:
-    #             handlers.append(self._proxy)
-    #         self._session = build_opener(*handlers)
-    #     return self._session
-
-    # def _request(self,  method, url, data=None, headers=None, session=None):
-    #     session = session if session is not None else self.session
-    #     req = Request(url, data=data)
-    #     if headers:
-    #         for (key, value) in headers.items():
-    #             req.add_header(key, value)
-    #     req.get_method = lambda: method.upper()
-    #     try:
-    #         res = session.open(req)
-    #     except HTTPError as err:
-    #         if err.code == 403 and self._cj is not None and not self._failed_auth:
-    #             self._failed_auth = True
-    #             self._authenticate(force=True)
-    #             return self._request(method, url, data, headers)
-    #         return err, None
-    #     return None, res
-
-    # def _has_eve_cookie(self, cj):
-    #     for cookie in cj:
-    #         if cookie.domain == 'eve.devsca.com':
-    #             return True
-    #     return False
-
-    # def _authenticate(self, force=False):
-    #     if not force and self._has_eve_cookie(self._cj):
-    #         return
-    #     url = self._build_url(self._AUTH_FRAGMENT, {'token':self._token})
-    #     err, _ = self._request('GET', url)
-    #     if err:
-    #         _print('Failed to authenticate to Eve!')
-    #         raise err
-    #     self._authed = True
-    #     if self._cj is not None:
-    #         self._cj.save(ignore_discard=True)
-    #     _print('Authenticated to Eve successfully')
-
-    # def _api_request(self, method, path, payload):
-    #     if not self._authed:
-    #         self._authenticate()
-    #     url = self._build_url(self._API_FRAGMENT, {'ver':2, 'path':path})
-    #     headers = {'Content-Type': 'application/json'}
-    #     data = json.dumps(payload)
-    #     if not PY2:
-    #         data = data.encode('utf-8')
-    #     return self._request(method, url, data=data, headers=headers)
-
     def request(self, *args, **kwargs):
         return self._session.request(*args, **kwargs)
-        # payload = {
-        #     'id': 999,
-        #     'jsonrpc': '2.0',
-        #     'params': params
-        # }
-        # if rpc is not None:
-        #     payload['method'] = rpc
-        # err, resp = self._api_request(method, path, payload)
-        # if err:
-        #     _print('Request to Eve failed with error!')
-        #     _print(str(err))
-        #     raise err
-        # if is_json:
-        #     return json.load(resp)
-        # else:
-        #     return resp.read()
 
     def _get_build_url(self, build_number=None, build_id=None):
         if build_number is not None:
@@ -575,13 +472,13 @@ def ask_y_n(msg, default=None):
     else:
         resp = prompt(msg, default='yN')
     if not resp:
-        return default
+        return None
     return resp.strip().lower() in TRUTHY
 
 def get_passwd(msg, default=None):
     passwd = getpass(_build_prompt(msg, default))
     if not len(passwd):
-        return default
+        return None
     return passwd
 
 DEFAULT_CONFIG_DIR = os.path.expanduser('~/.eve/')
@@ -602,12 +499,12 @@ def safe_get(conf, section, key, default=''):
         pass
     return default
 
-def update_field(conf, section, key, msg, prpt=None):
+def update_field(conf, section, key, how):
     existing = safe_get(conf, section , key)
-    if prpt:
-        new = str(prpt(msg, existing))
-    else:
-        new = prompt(msg, existing)
+    getter = how.get('getter', lambda x: x)
+    setter = how.get('setter', prompt)
+    desc = how.get('desc')
+    new = setter(desc, getter(existing))
     changed = False
     if new == '""' or new == "''":
         if conf.has_option(section, key):
@@ -616,25 +513,46 @@ def update_field(conf, section, key, msg, prpt=None):
     elif new is not None:
         changed = True
         if conf.has_section(section):
-            conf.set(section, key, new)
+            conf.set(section, key, str(new))
         else:
-            conf[section] = {key:new}
+            conf[section] = {key:str(new)}
     return changed, conf
 
 CONFIG_SCHEMA = {
     'defaults': {
-        'repo': 'Default repository to operate on. (Can be useful if you work mainly on one project)',
-        'platform': 'Default platform to use. "github" or "bitbucket" (Can be useful if you use only one platform)',
-        'proxy': 'Use a SOCKS or HTTP(s) proxy by default. Proxy host must be in the format socks(4|5)://example.com:8080 or http(s)://example.com:8080',
-        'persistent_cookies': ('Enable persistent cookies to prevent logging into Eve every time', ask_y_n)
+        'repo': {
+            'desc': 'Default repository to operate on. (Can be useful if you work mainly on one project)'
+        },
+        'platform': {
+            'desc': 'Default platform to use. "github" or "bitbucket" (Can be useful if you use only one platform)'
+        },
+        'proxy': {
+            'desc': 'Use a SOCKS or HTTP(s) proxy by default. Proxy host must be in the format socks(4|5)://example.com:8080 or http(s)://example.com:8080'
+        },
+        'persistent_cookies': {
+            'desc': 'Enable persistent cookies to prevent logging into Eve every time', 
+            'setter': ask_y_n
+        }
     },
     'github': {
-        'token': 'Github Personal Access Token',
+        'token': {
+            'desc': 'Github Personal Access Token',
+            'getter': lambda p: '*' * (len(p) - 4) + p[-4:]
+        },
     },
     'bitbucket': {
-        'username': 'Bitbucket Username',
-        'password': ('Bitbucket Password', get_passwd),
-        'consumer_id': 'Bitbucket Consumer ID',
+        'username': {
+            'desc': 'Bitbucket Username'
+        },
+        'password': {
+            'desc': 'Bitbucket Password',
+            'setter': get_passwd,
+            'getter': lambda p: ('*' * (len(p) - 4)) + p[-4:]
+        },
+        'consumer_id': {
+            'desc': 'Bitbucket Consumer ID',
+            'getter': lambda p: '*' * (len(p) - 4) + p[-4:]
+        },
     }
 }
 
@@ -642,18 +560,11 @@ def configure(conf, args):
     if not os.path.isdir(DEFAULT_CONFIG_DIR):
         os.makedirs(DEFAULT_CONFIG_DIR) # mode 0640
     changed = False
-    _print('test')
     for (section, options) in CONFIG_SCHEMA.items():
-        for (option, msg) in options.items():
-            if isinstance(msg, tuple):
-                msg, prpt = msg
-            else:
-                prpt = None
-            _changed, conf = update_field(conf, section, option, msg, prpt=prpt)
+        for (option, how) in options.items():
+            _changed, conf = update_field(conf, section, option, how)
             if _changed:
                 changed = True
-    # conf = update_field(conf, 'defaults', 'platform')
-    # conf = update_field(conf, 'defaults', 'repo')
     if changed:
         with open(DEFAULT_CONFIG_PATH, 'w') as f:
             conf.write(f)
@@ -700,6 +611,8 @@ def parse_http(line):
     return HTTPConfig(proto, host, int(port))
 
 def proxy(value):
+    if value == 'None':
+        return None
     if re.match(SOCKS_FORMAT[:-1], value):
         conf = parse_socks(value)
         return SocksiPyHandler(*conf)
@@ -798,7 +711,6 @@ def get_args(conf):
         if conf.has_option('bitbucket', 'token'):
                 setattr(args, 'token', )
                 # parser.set_defaults(**{ arg: conf.get(platform , arg) })
-    _print(args)
     return args
 
 
@@ -822,27 +734,20 @@ def with_client(f):
                     sys.exit(1)
         # Load our cookies
         if args.persistent_cookies is not False:
-            if args.persistent_cookies is True or \
-                args.persistent_cookies.lower() in TRUTHY:
+            if args.persistent_cookies is True or args.persistent_cookies.lower() in TRUTHY:
+                persistent_cookies  = True
                 cj = LWPCookieJar(DEFAULT_COOKIE_PATH)
                 if os.path.exists(DEFAULT_COOKIE_PATH):
                     cj.load(ignore_discard=True)
         else:
+            persistent_cookies = False
             cj = CookieJar()
 
         # Build our session
         if args.platform == 'github':
-            session = GithubEveSession(args.platform, args.repo, cj, proxy=args.proxy, token=args.token)
+            session = GithubEveSession(args.platform, args.repo, cj, proxy=args.proxy, token=args.token, persistent_cookies=persistent_cookies)
         elif args.platform == 'bitbucket':
-            session = BitbucketEveSession(args.platform, args.repo, cj, proxy=args.proxy, username=args.username, password=args.password, consumer_id=args.consumer_id)
-            # token =  get_bitbucket_access_token(
-            #     args.username,
-            #     args.password,
-            #     args.consumer_id
-            # )
-            # args.token = token
-        # else:
-        #     cj = None
+            session = BitbucketEveSession(args.platform, args.repo, cj, proxy=args.proxy, username=args.username, password=args.password, consumer_id=args.consumer_id, persistent_cookies=persistent_cookies)
         eve_client = EveClient(session)
         return f(eve_client, args)
     return inner
