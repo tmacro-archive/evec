@@ -644,11 +644,11 @@ def get_args(conf):
 	parser = argparse.ArgumentParser(
 		prog=os.path.basename(sys.argv[0]),
 		description='CLI interface for Eve')
-	parser.add_argument('-p', '--platform', action='store')
-	parser.add_argument('-r', '--repo', action='store')
+	parser.add_argument('-p', '--platform', action='store', help='Platform hosting the repository.')
+	parser.add_argument('-r', '--repo', action='store', help='Repository to operate on.')
 	parser.add_argument('--proxy', action='store', type=proxy,
-		help='Direct traffic through a SOCKS or HTTP proxy. Must be in the format socks(4|5)://host:port or http(s)://host:port')
-	parser.add_argument('--no-cookies', action='store_false', dest='persistent_cookies', help='Disable persistent cookies for this session')
+		help='Direct traffic through a SOCKS or HTTP proxy. Must be in the format socks(4|5)://host:port or http(s)://host:port.')
+	parser.add_argument('--no-cookies', action='store_false', dest='persistent_cookies', help='Disable persistent cookies for this session.')
 
 	# Load defaults from config file
 	if conf.has_section('defaults'):
@@ -661,43 +661,43 @@ def get_args(conf):
 	subparsers = parser.add_subparsers(title='subcommands')
 
 	# Start interactive configuration
-	parser_configure = subparsers.add_parser('configure', help='Bootstrap CLI configuration')
+	parser_configure = subparsers.add_parser('configure', help='Bootstrap CLI configuration.')
 	parser_configure.set_defaults(func=partial(configure, conf))
 
 	# List running builds
-	parser_builds = subparsers.add_parser('builds', help='List all builds and statuses.')
+	parser_builds = subparsers.add_parser('builds', help='List all builds and statuses.', description='List all builds and their status.')
 	parser_builds.set_defaults(func=list_builds)
 
 	# Get the status of a particular build
-	parser_status = subparsers.add_parser('status', help='Get the status of a Eve build')
-	parser_status.add_argument('build', action='store', type=int, help='Build number to query')
+	parser_status = subparsers.add_parser('status', help='Get the status of a Eve build.', description='Get the status of a Eve build.')
+	parser_status.add_argument('build', action='store', type=int, help='Build number to query.')
 	parser_status.add_argument('-f', '--follow', action='store_true', help='Wait for the build to finish, and report its status.')
 	parser_status.add_argument('-v', '--verbose', action='store_true', help='Output more detailed build information.')
 	parser_status.set_defaults(func=get_build_status)
 
 	# Restart a build
-	parser_restart = subparsers.add_parser('restart', help='Restart an Eve build')
+	parser_restart = subparsers.add_parser('restart', help='Restart an Eve build.', description='Restart an Eve build.')
 	parser_restart.add_argument('-w', '--wait', action='store_true', help='Wait for the build to start, and report its build number.')
 	parser_restart.add_argument('-f', '--follow', action='store_true', help='Wait for the build to finish, and report its status.')
-	parser_restart.add_argument('build', action='store', type=int, help='Build number to restart')
+	parser_restart.add_argument('build', action='store', type=int, help='Build number to restart.')
 	parser_restart.add_argument('-v', '--verbose', action='store_true', help='Output more detailed build information.')
 	parser_restart.set_defaults(func=restart_build)
 
 	# Watch a running build
-	parser_watch = subparsers.add_parser('watch', help='Watch an Eve build, restarting it if it fails.')
-	parser_watch.add_argument('build', action='store', type=int, help='Build number to watch')
-	parser_watch.add_argument('-x', '--retries', action='store', type=int, help='Max number of times to restart a build. -1 == infinite')
+	parser_watch = subparsers.add_parser('watch', help='Watch an Eve build, restarting it if it fails.', description='Watch an Eve build, restarting it if it fails.')
+	parser_watch.add_argument('build', action='store', type=int, help='Build number to watch.')
+	parser_watch.add_argument('-x', '--retries', action='store', type=int, help='Max number of times to restart a build. -1 == infinite.')
 	parser_watch.add_argument('-v', '--verbose', action='store_true', help='Output more detailed build information.')
 	parser_watch.set_defaults(func=watch_build, follow=True, retries=3)
 
 	# Force start a build
-	parser_force = subparsers.add_parser('force', help='Force start an Eve build')
+	parser_force = subparsers.add_parser('force', help='Force start an Eve build', description='Force start an Eve build')
 	parser_force.add_argument('-b', '--branch', action='store', help='Build from this branch instead of the default.', required=True)
-	parser_force.add_argument('-s', '--stage', action='store', help='Start this stage instead of "pre-merge"', default='pre-merge')
+	parser_force.add_argument('-s', '--stage', action='store', help='Start this stage instead of "pre-merge"', default='pre-merge.')
 	parser_force.add_argument('-w', '--wait', action='store_true', help='Wait for the build to start, and report its build number.')
-	parser_force.add_argument('-f', '--follow', action='store_true', help='Wait for the build to finish, and report its status')
+	parser_force.add_argument('-f', '--follow', action='store_true', help='Wait for the build to finish, and report its status.')
 	parser_force.add_argument('-v', '--verbose', action='store_true', help='Output more detailed build information.')
-	parser_force.add_argument('-e', '--extra', action='append', type=custom_prop, help='Set custom properties on the build', metavar='VALUE', default=[])
+	parser_force.add_argument('-e', '--extra', action='append', type=custom_prop, help='Set custom properties on the build.', metavar='VALUE', default=[])
 	parser_force.set_defaults(func=force_start)
 
 	args = parser.parse_args()
@@ -716,7 +716,7 @@ def get_args(conf):
 	return args
 
 
-_client_info_error = 'You must define a {var} by using the --{var} flag or by configuring a default'
+_client_info_error = 'You must define a {var} by using the --{var} flag or by configuring a default.'
 def with_client(f):
 	def inner(args):
 		# Do some validation
