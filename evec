@@ -197,7 +197,7 @@ def get_bitbucket_access_token(username, password, consumer):
 class AuthError(Exception):
     pass
 
-class EveSession:
+class EveSession(object):
     _BASE_URL = 'https://eve.devsca.com/{platform}/scality/{repo}/{fragment}'
     _AUTH_FRAGMENT = 'auth/login?token={token}'
     _API_FRAGMENT = 'api/v{ver}/{path}'
@@ -250,7 +250,7 @@ class EveSession:
                 if not self._persistent_cookies or _failed:
                     return err, None
                 return self._request(method, url, data, headers, session, _failed=True)
-            return err, None                
+            return err, None
         return None, res
 
     def _authenticate(self):
@@ -265,8 +265,6 @@ class EveSession:
 
     def _api_request(self, method, path, payload):
         url = self._build_url(self._API_FRAGMENT, {'ver':2, 'path':path})
-        print(url)
-
         headers = {'Content-Type': 'application/json'}
         data = json.dumps(payload)
         if not PY2:
@@ -292,9 +290,9 @@ class EveSession:
             return resp.read()
 
 class GithubEveSession(EveSession):
-    def __init__(self, *args, token=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._token = token
+    def __init__(self, *args, **kwargs):
+        self._token = kwargs.pop('token', None)
+        super(GithubEveSession, self).__init__(*args, **kwargs)
 
     @property
     def token(self):
@@ -310,12 +308,12 @@ class BitbucketEveSession(EveSession):
             token = parse_qs(qs)['access_token'][0]
             return token
 
-    def __init__(self, *args, username=None, password=None, consumer_id=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._username = username
-        self._password = password
-        self._consumer_id = consumer_id
+    def __init__(self, *args, **kwargs):
+        self._username = kwargs.pop('username', None)
+        self._password = kwargs.pop('password', None)
+        self._consumer_id = kwargs.pop('consumer_id', None)
         self._token = None
+        super(BitbucketEveSession, self).__init__(*args, **kwargs)
 
     def _get_token(self):
         """Get an access token from Bitbucket.
@@ -530,7 +528,7 @@ CONFIG_SCHEMA = {
             'desc': 'Use a SOCKS or HTTP(s) proxy by default. Proxy host must be in the format socks(4|5)://example.com:8080 or http(s)://example.com:8080'
         },
         'persistent_cookies': {
-            'desc': 'Enable persistent cookies to prevent logging into Eve every time', 
+            'desc': 'Enable persistent cookies to prevent logging into Eve every time',
             'setter': ask_y_n
         }
     },
