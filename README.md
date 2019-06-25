@@ -33,7 +33,7 @@ Installation is as simple as
   curl https://raw.githubusercontent.com/tmacro/evec/master/evec > evec
 ```
 
-Evec is written to require no dependecies except the standard library for most use cases.
+Evec is written to require no dependecies except the standard library for most use cases and to work with Python 2/3.
 Its only optional dependency is [PySocks](https://github.com/Anorov/PySocks) for SOCKS4/5 proxy support. It can be installed from PyPi using
 
 ```
