@@ -57,20 +57,23 @@ except ImportError:
 	SOCKS_SUPPORT = False
 
 # Update these if you fork this script so you can get auto updates!
-GIST_BASE_URL = 'https://gist.githubusercontent.com/{user}/{gist}/raw/{file}'
-GIST_USER = 'tmacro'
-GIST_ID = '6eb9020d9feec8c4e36b845455a942aa'
-GIST_VERSION_FILE = 'VERSION'
-GIST_SCRIPT_FILE = 'evec'
-GIST_VERSION_URL = GIST_BASE_URL.format(
-	user=GIST_USER,
-	gist=GIST_ID,
-	file=GIST_VERSION_FILE
+GITHUB_BASE_URL = 'https://raw.githubusercontent.com/{user}/{repo}/{branch}/{file}'
+GITHUB_USER = 'tmacro'
+GITHUB_REPO = 'evec'
+GITHUB_BRANCH = 'master'
+GITHUB_VERSION_FILE = 'VERSION'
+GITHUB_SCRIPT_FILE = 'evec'
+GITHUB_VERSION_URL = GITHUB_BASE_URL.format(
+	user=GITHUB_USER,
+	repo=GITHUB_REPO,
+	branch=GITHUB_BRANCH,
+	file=GITHUB_VERSION_FILE
 )
-GIST_SCRIPT_URL = GIST_BASE_URL.format(
-	user=GIST_USER,
-	gist=GIST_ID,
-	file=GIST_SCRIPT_FILE
+GITHUB_SCRIPT_URL = GITHUB_BASE_URL.format(
+	user=GITHUB_USER,
+	repo=GITHUB_REPO,
+	branch=GITHUB_BRANCH,
+	file=GITHUB_SCRIPT_FILE
 )
 
 def _parse_version(ver):
@@ -81,11 +84,11 @@ def _check_version():
 	if not ENABLE_VERSION_CHECK:
 		return __version__
 	try:
-		res = urlopen(GIST_VERSION_URL)
+		res = urlopen(GITHUB_VERSION_URL)
 		latest = res.read()
 		if not PY2:
 			latest = latest.decode('utf-8')
-		return latest
+		return latest.strip()
 	except HTTPError:
 		return __version__ # If we get an error, just report we're updated
 
@@ -95,7 +98,7 @@ if _parse_version(__version__) < _parse_version(_latest_version):
 	ans = raw_input('Would you like to update to {}? [y,N]: '.format(_latest_version))
 	if ans == 'y' or ans == 'Y':
 		try:
-			res = urlopen(GIST_SCRIPT_URL)
+			res = urlopen(GITHUB_SCRIPT_URL)
 			new_script = res.readlines()
 			if not PY2:
 				new_script = [l.decode('utf-8') for l in new_script]
