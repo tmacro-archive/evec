@@ -519,6 +519,9 @@ def update_field(conf, section, key, how):
 			conf[section] = {key:str(new)}
 	return changed, conf
 
+def obfuscate(string):
+	return '%s%s'%('*' * (len(string) - 4), string[-4:])
+
 CONFIG_SCHEMA = {
 	'defaults': {
 		'repo': {
@@ -538,7 +541,7 @@ CONFIG_SCHEMA = {
 	'github': {
 		'token': {
 			'desc': 'Github Personal Access Token',
-			'getter': lambda p: '*' * (len(p) - 4) + p[-4:]
+			'getter': obfuscate
 		},
 	},
 	'bitbucket': {
@@ -548,11 +551,11 @@ CONFIG_SCHEMA = {
 		'password': {
 			'desc': 'Bitbucket Password',
 			'setter': get_passwd,
-			'getter': lambda p: ('*' * (len(p) - 4)) + p[-4:]
+			'getter': obfuscate
 		},
 		'consumer_id': {
 			'desc': 'Bitbucket Consumer ID',
-			'getter': lambda p: '*' * (len(p) - 4) + p[-4:]
+			'getter': obfuscate
 		},
 	}
 }
@@ -654,8 +657,6 @@ def get_args(conf):
 	# Special handling for the auth token as it depends on the default platform
 	if conf.has_option('defaults', 'platform'):
 		platform = conf.get('defaults', 'platform')
-
-
 
 	subparsers = parser.add_subparsers(title='subcommands')
 
