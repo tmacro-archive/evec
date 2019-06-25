@@ -23,38 +23,38 @@ import base64
 
 # Avoid print shenanigans
 def _print(msg, end = '\n'):
-    sys.stdout.write(str(msg) + end)
+	sys.stdout.write(str(msg) + end)
 
 PY2 = sys.version_info[0] == 2
 
 # Sort out library differences for HTTP
 if PY2:
-    from cookielib import CookieJar, LWPCookieJar
-    from urllib2 import Request, HTTPError, build_opener, HTTPCookieProcessor, urlopen, HTTPRedirectHandler
-    from urlparse import urlparse, parse_qs
+	from cookielib import CookieJar, LWPCookieJar
+	from urllib2 import Request, HTTPError, build_opener, HTTPCookieProcessor, urlopen, HTTPRedirectHandler
+	from urlparse import urlparse, parse_qs
 else:
-    from urllib.request import Request, build_opener, HTTPCookieProcessor, urlopen, HTTPRedirectHandler
-    from urllib.error import HTTPError
-    from urllib.parse import urlparse, parse_qs
-    from http.cookiejar import CookieJar, LWPCookieJar
+	from urllib.request import Request, build_opener, HTTPCookieProcessor, urlopen, HTTPRedirectHandler
+	from urllib.error import HTTPError
+	from urllib.parse import urlparse, parse_qs
+	from http.cookiejar import CookieJar, LWPCookieJar
 
 # Normalize user input
 if not PY2:
-    raw_input = input
+	raw_input = input
 
 # Alias ConfigParser for python2
 if PY2:
-    import ConfigParser as configparser
+	import ConfigParser as configparser
 else:
-    import configparser
+	import configparser
 
 # Setup optional SOCKS proxy support
 try:
-    import socks
-    from sockshandler import SocksiPyHandler
-    SOCKS_SUPPORT = True
+	import socks
+	from sockshandler import SocksiPyHandler
+	SOCKS_SUPPORT = True
 except ImportError:
-    SOCKS_SUPPORT = False
+	SOCKS_SUPPORT = False
 
 # Update these if you fork this script so you can get auto updates!
 GIST_BASE_URL = 'https://gist.githubusercontent.com/{user}/{gist}/raw/{file}'
@@ -63,509 +63,509 @@ GIST_ID = '6eb9020d9feec8c4e36b845455a942aa'
 GIST_VERSION_FILE = 'VERSION'
 GIST_SCRIPT_FILE = 'evec'
 GIST_VERSION_URL = GIST_BASE_URL.format(
-    user=GIST_USER,
-    gist=GIST_ID,
-    file=GIST_VERSION_FILE
+	user=GIST_USER,
+	gist=GIST_ID,
+	file=GIST_VERSION_FILE
 )
 GIST_SCRIPT_URL = GIST_BASE_URL.format(
-    user=GIST_USER,
-    gist=GIST_ID,
-    file=GIST_SCRIPT_FILE
+	user=GIST_USER,
+	gist=GIST_ID,
+	file=GIST_SCRIPT_FILE
 )
 
 def _parse_version(ver):
-    major, minor, patch = ver.split('.')
-    return int(major), int(minor), int(patch)
+	major, minor, patch = ver.split('.')
+	return int(major), int(minor), int(patch)
 
 def _check_version():
-    if not ENABLE_VERSION_CHECK:
-        return __version__
-    try:
-        res = urlopen(GIST_VERSION_URL)
-        latest = res.read()
-        if not PY2:
-            latest = latest.decode('utf-8')
-        return latest
-    except HTTPError:
-        return __version__ # If we get an error, just report we're updated
+	if not ENABLE_VERSION_CHECK:
+		return __version__
+	try:
+		res = urlopen(GIST_VERSION_URL)
+		latest = res.read()
+		if not PY2:
+			latest = latest.decode('utf-8')
+		return latest
+	except HTTPError:
+		return __version__ # If we get an error, just report we're updated
 
 _latest_version = _check_version()
 if _parse_version(__version__) < _parse_version(_latest_version):
-    _print('A new version of {} is available.'.format(sys.argv[0]))
-    ans = raw_input('Would you like to update to {}? [y,N]: '.format(_latest_version))
-    if ans == 'y' or ans == 'Y':
-        try:
-            res = urlopen(GIST_SCRIPT_URL)
-            new_script = res.readlines()
-            if not PY2:
-                new_script = [l.decode('utf-8') for l in new_script]
-            real_script_path = os.path.realpath(__file__)
-            ans = raw_input('Would you like to view the diff? [Y,n]: ')
-            if ans == 'y' or ans == 'Y' or ans == '':
-                with open(real_script_path) as f:
-                    current_script = f.readlines()
-                version_tmpl = 'evec version: %s'
-                for line in difflib.unified_diff(
-                        current_script,
-                        new_script,
-                        fromfile=version_tmpl%__version__,
-                        tofile=version_tmpl%_latest_version):
-                    _print(line, end='')
-                ans = raw_input('Approve? [y,N]: ')
-                if ans != 'y' and ans != 'Y':
-                    _print('Aborting update.')
-                    sys.exit(0)
-            with open(real_script_path, 'w') as f:
-                f.write(''.join(new_script))
-            sys.exit(0)
-        except Exception as e:
-            _print('Update failed!')
-            _print(e)
-            sys.exit(1)
+	_print('A new version of {} is available.'.format(sys.argv[0]))
+	ans = raw_input('Would you like to update to {}? [y,N]: '.format(_latest_version))
+	if ans == 'y' or ans == 'Y':
+		try:
+			res = urlopen(GIST_SCRIPT_URL)
+			new_script = res.readlines()
+			if not PY2:
+				new_script = [l.decode('utf-8') for l in new_script]
+			real_script_path = os.path.realpath(__file__)
+			ans = raw_input('Would you like to view the diff? [Y,n]: ')
+			if ans == 'y' or ans == 'Y' or ans == '':
+				with open(real_script_path) as f:
+					current_script = f.readlines()
+				version_tmpl = 'evec version: %s'
+				for line in difflib.unified_diff(
+						current_script,
+						new_script,
+						fromfile=version_tmpl%__version__,
+						tofile=version_tmpl%_latest_version):
+					_print(line, end='')
+				ans = raw_input('Approve? [y,N]: ')
+				if ans != 'y' and ans != 'Y':
+					_print('Aborting update.')
+					sys.exit(0)
+			with open(real_script_path, 'w') as f:
+				f.write(''.join(new_script))
+			sys.exit(0)
+		except Exception as e:
+			_print('Update failed!')
+			_print(e)
+			sys.exit(1)
 
 
 class Retry(Exception):
-    pass
+	pass
 
 def retry(msg, sleep=None, retries=3):
-    def outer(f):
-        def inner(*args, **kwargs):
-            if retries == -1:
-                _retries = itertools.count(0)
-            else:
-                _retries = range(retries + 1)
-            for i in _retries:
-                try:
-                    return f(*args, **kwargs)
-                except Retry as e:
-                    _print(msg.format(
-                        err=str(e.err),
-                        retry=i,
-                        limit=retries
-                    ))
-                    if sleep:
-                        time.sleep(sleep)
-        return inner
-    return outer
+	def outer(f):
+		def inner(*args, **kwargs):
+			if retries == -1:
+				_retries = itertools.count(0)
+			else:
+				_retries = range(retries + 1)
+			for i in _retries:
+				try:
+					return f(*args, **kwargs)
+				except Retry as e:
+					_print(msg.format(
+						err=str(e.err),
+						retry=i,
+						limit=retries
+					))
+					if sleep:
+						time.sleep(sleep)
+		return inner
+	return outer
 
 # For Bitbucket, shout out to releng!
 class AuthCodeRedirectHandler(HTTPRedirectHandler):
-    def http_error_302(self, req, fp, code, msg, headers):
-        """Handler for 302 responses that assumes a properly constructed
-        OAuth 302 response and pulls the token out of the header."""
-        qs = urlparse(headers["location"]).fragment
-        token = parse_qs(qs)['access_token'][0]
-        return token
+	def http_error_302(self, req, fp, code, msg, headers):
+		"""Handler for 302 responses that assumes a properly constructed
+		OAuth 302 response and pulls the token out of the header."""
+		qs = urlparse(headers["location"]).fragment
+		token = parse_qs(qs)['access_token'][0]
+		return token
 
 
 def get_bitbucket_access_token(username, password, consumer):
-    """Get an access token from Bitbucket.
+	"""Get an access token from Bitbucket.
 
-    Args:
-        username (str): username of the bitbucket account.
-        password (str): password of the bitbucket account
-        consumer (str): consumer key of this app on bitbucket
+	Args:
+		username (str): username of the bitbucket account.
+		password (str): password of the bitbucket account
+		consumer (str): consumer key of this app on bitbucket
 
-    Returns:
-        string containing the authentication token
+	Returns:
+		string containing the authentication token
 
-    """
-    _print('Getting Bitbucket access token...')
-    print(username, password, consumer)
-    if PY2:
-        base64auth = base64.b64encode('%s:%s' % (username, password))
-    else:
-        base64auth = base64.b64encode(bytes('%s:%s' % (username, password), 'utf-8'))
-        base64auth = base64auth.decode('utf-8')
-    opener = build_opener(AuthCodeRedirectHandler)
-    auth_url = ('https://bitbucket.org/site/oauth2/authorize'
-                '?client_id=%s&response_type=token' % consumer)
-    req = Request(auth_url)
-    req.add_header("Authorization", "Basic %s" % base64auth)
-    try:
-        auth_code = opener.open(req)
-    except HTTPError as excp:
-        print(excp.file.read())
-        sys.exit('HTTP error: %s (%s)' % (excp.reason, excp.code))
+	"""
+	_print('Getting Bitbucket access token...')
+	print(username, password, consumer)
+	if PY2:
+		base64auth = base64.b64encode('%s:%s' % (username, password))
+	else:
+		base64auth = base64.b64encode(bytes('%s:%s' % (username, password), 'utf-8'))
+		base64auth = base64auth.decode('utf-8')
+	opener = build_opener(AuthCodeRedirectHandler)
+	auth_url = ('https://bitbucket.org/site/oauth2/authorize'
+				'?client_id=%s&response_type=token' % consumer)
+	req = Request(auth_url)
+	req.add_header("Authorization", "Basic %s" % base64auth)
+	try:
+		auth_code = opener.open(req)
+	except HTTPError as excp:
+		print(excp.file.read())
+		sys.exit('HTTP error: %s (%s)' % (excp.reason, excp.code))
 
-    if not isinstance(auth_code, str):
-        sys.exit('Please visit this URL to authorize the token, '
-                 'then launch this script again:\n%s' % auth_url)
+	if not isinstance(auth_code, str):
+		sys.exit('Please visit this URL to authorize the token, '
+				 'then launch this script again:\n%s' % auth_url)
 
-    return auth_code
+	return auth_code
 
 class AuthError(Exception):
-    pass
+	pass
 
 class EveSession(object):
-    _BASE_URL = 'https://eve.devsca.com/{platform}/scality/{repo}/{fragment}'
-    _AUTH_FRAGMENT = 'auth/login?token={token}'
-    _API_FRAGMENT = 'api/v{ver}/{path}'
+	_BASE_URL = 'https://eve.devsca.com/{platform}/scality/{repo}/{fragment}'
+	_AUTH_FRAGMENT = 'auth/login?token={token}'
+	_API_FRAGMENT = 'api/v{ver}/{path}'
 
-    def __init__(self, platform, repo, cookiejar, persistent_cookies=False, proxy=None):
-        self._session = None
-        self._platform = platform
-        self._repo = repo
-        self._cookiejar = cookiejar
-        self._proxy = proxy
-        self._persistent_cookies = persistent_cookies
+	def __init__(self, platform, repo, cookiejar, persistent_cookies=False, proxy=None):
+		self._session = None
+		self._platform = platform
+		self._repo = repo
+		self._cookiejar = cookiejar
+		self._proxy = proxy
+		self._persistent_cookies = persistent_cookies
 
-    @property
-    def token(self):
-        pass
+	@property
+	def token(self):
+		pass
 
-    @property
-    def session(self):
-        if self._session is None:
-            cookie_handler = HTTPCookieProcessor(self._cookiejar)
-            handlers = [cookie_handler]
-            if self._proxy is not None:
-                handlers.append(self._proxy)
-            self._session = build_opener(*handlers)
-        return self._session
+	@property
+	def session(self):
+		if self._session is None:
+			cookie_handler = HTTPCookieProcessor(self._cookiejar)
+			handlers = [cookie_handler]
+			if self._proxy is not None:
+				handlers.append(self._proxy)
+			self._session = build_opener(*handlers)
+		return self._session
 
-    def _build_url(self, fragment, data={}):
-        url = self._BASE_URL.format(
-            platform=self._platform,
-            repo=self._repo,
-            fragment=fragment,
-        )
-        return url.format(**data)
+	def _build_url(self, fragment, data={}):
+		url = self._BASE_URL.format(
+			platform=self._platform,
+			repo=self._repo,
+			fragment=fragment,
+		)
+		return url.format(**data)
 
-    def _request(self,  method, url, data=None, headers=None, session=None, _failed=False, _no_auth=False):
-        session = session if session is not None else self.session
-        req = Request(url, data=data)
-        if headers:
-            for (key, value) in headers.items():
-                req.add_header(key, value)
-        req.get_method = lambda: method.upper()
-        # If we're not saving cookies, we need to auth every time
-        # If _failed is set then we've gotten a 403 and need to
-        if not _no_auth and not self._persistent_cookies or _failed:
-            self._authenticate()
-        try:
-            res = session.open(req)
-        except HTTPError as err:
-            if err.code == 403:
-                if not self._persistent_cookies or _failed:
-                    return err, None
-                return self._request(method, url, data, headers, session, _failed=True)
-            return err, None
-        return None, res
+	def _request(self,  method, url, data=None, headers=None, session=None, _failed=False, _no_auth=False):
+		session = session if session is not None else self.session
+		req = Request(url, data=data)
+		if headers:
+			for (key, value) in headers.items():
+				req.add_header(key, value)
+		req.get_method = lambda: method.upper()
+		# If we're not saving cookies, we need to auth every time
+		# If _failed is set then we've gotten a 403 and need to
+		if not _no_auth and not self._persistent_cookies or _failed:
+			self._authenticate()
+		try:
+			res = session.open(req)
+		except HTTPError as err:
+			if err.code == 403:
+				if not self._persistent_cookies or _failed:
+					return err, None
+				return self._request(method, url, data, headers, session, _failed=True)
+			return err, None
+		return None, res
 
-    def _authenticate(self):
-        url = self._build_url(self._AUTH_FRAGMENT, {'token':self.token})
-        err, _ = self._request('GET', url, _no_auth=True)
-        if err:
-            _print('Failed to authenticate to Eve!')
-            raise err
-        if self._cookiejar is not None and self._persistent_cookies:
-            self._cookiejar.save(ignore_discard=True)
-        _print('Authenticated to Eve successfully')
+	def _authenticate(self):
+		url = self._build_url(self._AUTH_FRAGMENT, {'token':self.token})
+		err, _ = self._request('GET', url, _no_auth=True)
+		if err:
+			_print('Failed to authenticate to Eve!')
+			raise err
+		if self._cookiejar is not None and self._persistent_cookies:
+			self._cookiejar.save(ignore_discard=True)
+		_print('Authenticated to Eve successfully')
 
-    def _api_request(self, method, path, payload):
-        url = self._build_url(self._API_FRAGMENT, {'ver':2, 'path':path})
-        headers = {'Content-Type': 'application/json'}
-        data = json.dumps(payload)
-        if not PY2:
-            data = data.encode('utf-8')
-        return self._request(method, url, data=data, headers=headers)
+	def _api_request(self, method, path, payload):
+		url = self._build_url(self._API_FRAGMENT, {'ver':2, 'path':path})
+		headers = {'Content-Type': 'application/json'}
+		data = json.dumps(payload)
+		if not PY2:
+			data = data.encode('utf-8')
+		return self._request(method, url, data=data, headers=headers)
 
-    def request(self, path, params={}, method='GET', is_json=True, rpc=None):
-        payload = {
-            'id': 999,
-            'jsonrpc': '2.0',
-            'params': params
-        }
-        if rpc is not None:
-            payload['method'] = rpc
-        err, resp = self._api_request(method, path, payload)
-        if err:
-            _print('Request to Eve failed with error!')
-            _print(str(err))
-            raise err
-        if is_json:
-            return json.load(resp)
-        else:
-            return resp.read()
+	def request(self, path, params={}, method='GET', is_json=True, rpc=None):
+		payload = {
+			'id': 999,
+			'jsonrpc': '2.0',
+			'params': params
+		}
+		if rpc is not None:
+			payload['method'] = rpc
+		err, resp = self._api_request(method, path, payload)
+		if err:
+			_print('Request to Eve failed with error!')
+			_print(str(err))
+			raise err
+		if is_json:
+			return json.load(resp)
+		else:
+			return resp.read()
 
 class GithubEveSession(EveSession):
-    def __init__(self, *args, **kwargs):
-        self._token = kwargs.pop('token', None)
-        super(GithubEveSession, self).__init__(*args, **kwargs)
+	def __init__(self, *args, **kwargs):
+		self._token = kwargs.pop('token', None)
+		super(GithubEveSession, self).__init__(*args, **kwargs)
 
-    @property
-    def token(self):
-        return self._token
+	@property
+	def token(self):
+		return self._token
 
 # Shout out to releng for the Bitbucket code!
 class BitbucketEveSession(EveSession):
-    class AuthCodeRedirectHandler(HTTPRedirectHandler):
-        def http_error_302(self, req, fp, code, msg, headers):
-            """Handler for 302 responses that assumes a properly constructed
-            OAuth 302 response and pulls the token out of the header."""
-            qs = urlparse(headers["location"]).fragment
-            token = parse_qs(qs)['access_token'][0]
-            return token
+	class AuthCodeRedirectHandler(HTTPRedirectHandler):
+		def http_error_302(self, req, fp, code, msg, headers):
+			"""Handler for 302 responses that assumes a properly constructed
+			OAuth 302 response and pulls the token out of the header."""
+			qs = urlparse(headers["location"]).fragment
+			token = parse_qs(qs)['access_token'][0]
+			return token
 
-    def __init__(self, *args, **kwargs):
-        self._username = kwargs.pop('username', None)
-        self._password = kwargs.pop('password', None)
-        self._consumer_id = kwargs.pop('consumer_id', None)
-        self._token = None
-        super(BitbucketEveSession, self).__init__(*args, **kwargs)
+	def __init__(self, *args, **kwargs):
+		self._username = kwargs.pop('username', None)
+		self._password = kwargs.pop('password', None)
+		self._consumer_id = kwargs.pop('consumer_id', None)
+		self._token = None
+		super(BitbucketEveSession, self).__init__(*args, **kwargs)
 
-    def _get_token(self):
-        """Get an access token from Bitbucket.
+	def _get_token(self):
+		"""Get an access token from Bitbucket.
 
-        Args:
-            username (str): username of the bitbucket account.
-            password (str): password of the bitbucket account
-            consumer (str): consumer key of this app on bitbucket
+		Args:
+			username (str): username of the bitbucket account.
+			password (str): password of the bitbucket account
+			consumer (str): consumer key of this app on bitbucket
 
-        Returns:
-            string containing the authentication token
+		Returns:
+			string containing the authentication token
 
-        """
-        _print('Getting Bitbucket access token...')
-        if PY2:
-            base64auth = base64.b64encode('%s:%s' % (self._username, self._password))
-        else:
-            base64auth = base64.b64encode(bytes('%s:%s' % (self._username, self._password), 'utf-8'))
-            base64auth = base64auth.decode('utf-8')
-        opener = build_opener(self.AuthCodeRedirectHandler)
-        auth_url = ('https://bitbucket.org/site/oauth2/authorize'
-                    '?client_id=%s&response_type=token' % self._consumer_id)
-        req = Request(auth_url)
-        req.add_header("Authorization", "Basic %s" % base64auth)
-        try:
-            auth_code = opener.open(req)
-        except HTTPError as excp:
-            sys.exit('HTTP error: %s (%s)' % (excp.reason, excp.code))
+		"""
+		_print('Getting Bitbucket access token...')
+		if PY2:
+			base64auth = base64.b64encode('%s:%s' % (self._username, self._password))
+		else:
+			base64auth = base64.b64encode(bytes('%s:%s' % (self._username, self._password), 'utf-8'))
+			base64auth = base64auth.decode('utf-8')
+		opener = build_opener(self.AuthCodeRedirectHandler)
+		auth_url = ('https://bitbucket.org/site/oauth2/authorize'
+					'?client_id=%s&response_type=token' % self._consumer_id)
+		req = Request(auth_url)
+		req.add_header("Authorization", "Basic %s" % base64auth)
+		try:
+			auth_code = opener.open(req)
+		except HTTPError as excp:
+			sys.exit('HTTP error: %s (%s)' % (excp.reason, excp.code))
 
-        if not isinstance(auth_code, str):
-            sys.exit('Please visit this URL to authorize the token, '
-                    'then launch this script again:\n%s' % auth_url)
-        return auth_code
+		if not isinstance(auth_code, str):
+			sys.exit('Please visit this URL to authorize the token, '
+					'then launch this script again:\n%s' % auth_url)
+		return auth_code
 
-    @property
-    def token(self):
-        if self._token is None:
-            self._token = self._get_token()
-        return self._token
+	@property
+	def token(self):
+		if self._token is None:
+			self._token = self._get_token()
+		return self._token
 
 class EveClient:
-    def __init__(self, session):
-        self._session = session
+	def __init__(self, session):
+		self._session = session
 
-    def request(self, *args, **kwargs):
-        return self._session.request(*args, **kwargs)
+	def request(self, *args, **kwargs):
+		return self._session.request(*args, **kwargs)
 
-    def _get_build_url(self, build_number=None, build_id=None):
-        if build_number is not None:
-            return 'builders/bootstrap/builds/%s'%build_number
-        if build_id is not None:
-            return '/builds/%s'%build_id
+	def _get_build_url(self, build_number=None, build_id=None):
+		if build_number is not None:
+			return 'builders/bootstrap/builds/%s'%build_number
+		if build_id is not None:
+			return '/builds/%s'%build_id
 
-    def get_build(self, build_number=None, build_id=None, build_request_id=None):
-        props = '?property=stage_name&property=buildnumber'
-        if build_number is not None:
-            uri = 'builders/bootstrap/builds/{}{}'.format(build_number, props)
-        if build_id is not None:
-            uri = '/builds/{}{}'.format(build_id, props)
-        if build_request_id is not None:
-            uri = '/buildrequests/{}/builds{}'.format(build_request_id, props)
-        return self.request(uri)
+	def get_build(self, build_number=None, build_id=None, build_request_id=None):
+		props = '?property=stage_name&property=buildnumber'
+		if build_number is not None:
+			uri = 'builders/bootstrap/builds/{}{}'.format(build_number, props)
+		if build_id is not None:
+			uri = '/builds/{}{}'.format(build_id, props)
+		if build_request_id is not None:
+			uri = '/buildrequests/{}/builds{}'.format(build_request_id, props)
+		return self.request(uri)
 
-    def get_build_status(self, **kwargs):
-        resp = self.get_build(**kwargs)
-        if resp is not None:
-            build = resp.get('builds', [None])[0]
-            return build
+	def get_build_status(self, **kwargs):
+		resp = self.get_build(**kwargs)
+		if resp is not None:
+			build = resp.get('builds', [None])[0]
+			return build
 
-    def restart_build(self, **kwargs):
-        url = self._get_build_url(**kwargs)
-        resp = self.request(url, method='POST', rpc='rebuild')
-        brid = resp.get('result', [None])[0]
-        return brid
+	def restart_build(self, **kwargs):
+		url = self._get_build_url(**kwargs)
+		resp = self.request(url, method='POST', rpc='rebuild')
+		brid = resp.get('result', [None])[0]
+		return brid
 
-    def force_start(self, branch=None, stage='pre-merge', extra_props={}):
-        resp = self.request(
-            'forceschedulers/force',
-            method='POST',
-            rpc='force',
-            params = dict(
-                branch=branch,
-                force_stage=stage,
-                **extra_props
-            ))
-        brid = resp.get('result', [None])[0]
-        return brid
+	def force_start(self, branch=None, stage='pre-merge', extra_props={}):
+		resp = self.request(
+			'forceschedulers/force',
+			method='POST',
+			rpc='force',
+			params = dict(
+				branch=branch,
+				force_stage=stage,
+				**extra_props
+			))
+		brid = resp.get('result', [None])[0]
+		return brid
 
-    def list_builds(self, include_complete=False, stage=None):
-        args = [
-            'complete=%s'%str(include_complete,).lower(),
-            'order=-started_at',
-            'property=stage_name',
-            'property=buildnumber'
-        ]
-        def stage_filter(build):
-            return stage is None or \
-                build['properties']['stage_name'][0] == stage
+	def list_builds(self, include_complete=False, stage=None):
+		args = [
+			'complete=%s'%str(include_complete,).lower(),
+			'order=-started_at',
+			'property=stage_name',
+			'property=buildnumber'
+		]
+		def stage_filter(build):
+			return stage is None or \
+				build['properties']['stage_name'][0] == stage
 
-        for build in filter(stage_filter,
-            self.request('builds?{args}'.format(args='&'.join(args)))['builds']):
-            yield build
+		for build in filter(stage_filter,
+			self.request('builds?{args}'.format(args='&'.join(args)))['builds']):
+			yield build
 
-    # Will poll a build, and yield its status untils it's complete
-    # Will gracefully follow a build request to a build once its started
-    def poll_build(self, interval=30, **kwargs):
-        first_run = True
-        while True:
-            status = self.get_build(**kwargs)
-            builds = status.get('builds')
-            if builds:
-                _status = builds[0]
-                yield _status
-                if _status.get('complete'):
-                    break
-                buildnum = builds[0]['number']
-                kwargs = dict(build_number=buildnum)
-            elif first_run:
-                _print('Waiting for build to start...')
-                first_run = False
-            time.sleep(interval)
+	# Will poll a build, and yield its status untils it's complete
+	# Will gracefully follow a build request to a build once its started
+	def poll_build(self, interval=30, **kwargs):
+		first_run = True
+		while True:
+			status = self.get_build(**kwargs)
+			builds = status.get('builds')
+			if builds:
+				_status = builds[0]
+				yield _status
+				if _status.get('complete'):
+					break
+				buildnum = builds[0]['number']
+				kwargs = dict(build_number=buildnum)
+			elif first_run:
+				_print('Waiting for build to start...')
+				first_run = False
+			time.sleep(interval)
 
 def _build_prompt(desc, default='', end=': '):
-    default = default if default is not None else ''
-    _default = ' [%s]'%default
-    return '%s%s%s'%(
-            desc,
-            _default,
-            end
-        )
+	default = default if default is not None else ''
+	_default = ' [%s]'%default
+	return '%s%s%s'%(
+			desc,
+			_default,
+			end
+		)
 def prompt(desc, default='', end=': '):
-    try:
-        resp = raw_input(_build_prompt(desc, default, end))
-        if resp.strip() == '':
-            return None
-        return resp.strip()
-    except EOFError:
-        sys.exit(1)
+	try:
+		resp = raw_input(_build_prompt(desc, default, end))
+		if resp.strip() == '':
+			return None
+		return resp.strip()
+	except EOFError:
+		sys.exit(1)
 
 TRUTHY = [
-    'true',
-    't',
-    'on',
-    'enable',
-    'yes',
-    'y',
+	'true',
+	't',
+	'on',
+	'enable',
+	'yes',
+	'y',
 ]
 
 def ask_y_n(msg, default=None):
-    if isinstance(default, str):
-        default = default.strip().lower() in TRUTHY
-    if default:
-        resp = prompt(msg, default='Yn')
-    else:
-        resp = prompt(msg, default='yN')
-    if not resp:
-        return None
-    return resp.strip().lower() in TRUTHY
+	if isinstance(default, str):
+		default = default.strip().lower() in TRUTHY
+	if default:
+		resp = prompt(msg, default='Yn')
+	else:
+		resp = prompt(msg, default='yN')
+	if not resp:
+		return None
+	return resp.strip().lower() in TRUTHY
 
 def get_passwd(msg, default=None):
-    passwd = getpass(_build_prompt(msg, default))
-    if not len(passwd):
-        return None
-    return passwd
+	passwd = getpass(_build_prompt(msg, default))
+	if not len(passwd):
+		return None
+	return passwd
 
 DEFAULT_CONFIG_DIR = os.path.expanduser('~/.eve/')
 DEFAULT_CONFIG_PATH = DEFAULT_CONFIG_DIR + 'eve.ini'
 DEFAULT_COOKIE_PATH = DEFAULT_CONFIG_DIR + 'cookies.txt'
 def load_config():
-    parser = configparser.ConfigParser()
-    parser.read(DEFAULT_CONFIG_PATH)
-    return parser
+	parser = configparser.ConfigParser()
+	parser.read(DEFAULT_CONFIG_PATH)
+	return parser
 
 def safe_get(conf, section, key, default=''):
-    try:
-        val = conf.get(section, key)
-        return val
-    except configparser.NoOptionError:
-        pass
-    except configparser.NoSectionError:
-        pass
-    return default
+	try:
+		val = conf.get(section, key)
+		return val
+	except configparser.NoOptionError:
+		pass
+	except configparser.NoSectionError:
+		pass
+	return default
 
 def update_field(conf, section, key, how):
-    existing = safe_get(conf, section , key)
-    getter = how.get('getter', lambda x: x)
-    setter = how.get('setter', prompt)
-    desc = how.get('desc')
-    new = setter(desc, getter(existing))
-    changed = False
-    if new == '""' or new == "''":
-        if conf.has_option(section, key):
-            conf.remove_option(section, key)
-            changed = True
-    elif new is not None:
-        changed = True
-        if conf.has_section(section):
-            conf.set(section, key, str(new))
-        else:
-            conf[section] = {key:str(new)}
-    return changed, conf
+	existing = safe_get(conf, section , key)
+	getter = how.get('getter', lambda x: x)
+	setter = how.get('setter', prompt)
+	desc = how.get('desc')
+	new = setter(desc, getter(existing))
+	changed = False
+	if new == '""' or new == "''":
+		if conf.has_option(section, key):
+			conf.remove_option(section, key)
+			changed = True
+	elif new is not None:
+		changed = True
+		if conf.has_section(section):
+			conf.set(section, key, str(new))
+		else:
+			conf[section] = {key:str(new)}
+	return changed, conf
 
 CONFIG_SCHEMA = {
-    'defaults': {
-        'repo': {
-            'desc': 'Default repository to operate on. (Can be useful if you work mainly on one project)'
-        },
-        'platform': {
-            'desc': 'Default platform to use. "github" or "bitbucket" (Can be useful if you use only one platform)'
-        },
-        'proxy': {
-            'desc': 'Use a SOCKS or HTTP(s) proxy by default. Proxy host must be in the format socks(4|5)://example.com:8080 or http(s)://example.com:8080'
-        },
-        'persistent_cookies': {
-            'desc': 'Enable persistent cookies to prevent logging into Eve every time',
-            'setter': ask_y_n
-        }
-    },
-    'github': {
-        'token': {
-            'desc': 'Github Personal Access Token',
-            'getter': lambda p: '*' * (len(p) - 4) + p[-4:]
-        },
-    },
-    'bitbucket': {
-        'username': {
-            'desc': 'Bitbucket Username'
-        },
-        'password': {
-            'desc': 'Bitbucket Password',
-            'setter': get_passwd,
-            'getter': lambda p: ('*' * (len(p) - 4)) + p[-4:]
-        },
-        'consumer_id': {
-            'desc': 'Bitbucket Consumer ID',
-            'getter': lambda p: '*' * (len(p) - 4) + p[-4:]
-        },
-    }
+	'defaults': {
+		'repo': {
+			'desc': 'Default repository to operate on. (Can be useful if you work mainly on one project)'
+		},
+		'platform': {
+			'desc': 'Default platform to use. "github" or "bitbucket" (Can be useful if you use only one platform)'
+		},
+		'proxy': {
+			'desc': 'Use a SOCKS or HTTP(s) proxy by default. Proxy host must be in the format socks(4|5)://example.com:8080 or http(s)://example.com:8080'
+		},
+		'persistent_cookies': {
+			'desc': 'Enable persistent cookies to prevent logging into Eve every time',
+			'setter': ask_y_n
+		}
+	},
+	'github': {
+		'token': {
+			'desc': 'Github Personal Access Token',
+			'getter': lambda p: '*' * (len(p) - 4) + p[-4:]
+		},
+	},
+	'bitbucket': {
+		'username': {
+			'desc': 'Bitbucket Username'
+		},
+		'password': {
+			'desc': 'Bitbucket Password',
+			'setter': get_passwd,
+			'getter': lambda p: ('*' * (len(p) - 4)) + p[-4:]
+		},
+		'consumer_id': {
+			'desc': 'Bitbucket Consumer ID',
+			'getter': lambda p: '*' * (len(p) - 4) + p[-4:]
+		},
+	}
 }
 
 def configure(conf, args):
-    if not os.path.isdir(DEFAULT_CONFIG_DIR):
-        os.makedirs(DEFAULT_CONFIG_DIR) # mode 0640
-    changed = False
-    for (section, options) in CONFIG_SCHEMA.items():
-        for (option, how) in options.items():
-            _changed, conf = update_field(conf, section, option, how)
-            if _changed:
-                changed = True
-    if changed:
-        with open(DEFAULT_CONFIG_PATH, 'w') as f:
-            conf.write(f)
+	if not os.path.isdir(DEFAULT_CONFIG_DIR):
+		os.makedirs(DEFAULT_CONFIG_DIR) # mode 0640
+	changed = False
+	for (section, options) in CONFIG_SCHEMA.items():
+		for (option, how) in options.items():
+			_changed, conf = update_field(conf, section, option, how)
+			if _changed:
+				changed = True
+	if changed:
+		with open(DEFAULT_CONFIG_PATH, 'w') as f:
+			conf.write(f)
 
 SOCKSConfig = namedtuple('SOCKSConfig', ['version', 'host', 'port'])
 HTTPConfig = namedtuple('HTTPConfig', ['proto', 'host', 'port'])
@@ -575,298 +575,298 @@ HTTPConfig = namedtuple('HTTPConfig', ['proto', 'host', 'port'])
 SOCKS_FORMAT = r'^socks(4|5)$'
 _socks_fmt_err = 'SOCKS proxy host must be in the format socks(4|5)://example.com:8080'
 def parse_socks(line):
-    if not SOCKS_SUPPORT:
-        _print('You must install PySocks to enable SOCKS proxy support.')
-        _print('With pip: pip install PySocks --user')
-        sys.exit(1)
-    parsed = urlparse(line)
-    match = re.match(SOCKS_FORMAT, parsed.scheme)
-    if not match:
-        _print(_socks_fmt_err)
-        sys.exit(1)
-    version = getattr(socks, 'SOCKS%s'%match.group(1))
-    try:
-        host, port = parsed.netloc.split(':')
-    except ValueError:
-        _print(_socks_fmt_err)
-        sys.exit(1)
-    return SOCKSConfig(version, host, int(port))
+	if not SOCKS_SUPPORT:
+		_print('You must install PySocks to enable SOCKS proxy support.')
+		_print('With pip: pip install PySocks --user')
+		sys.exit(1)
+	parsed = urlparse(line)
+	match = re.match(SOCKS_FORMAT, parsed.scheme)
+	if not match:
+		_print(_socks_fmt_err)
+		sys.exit(1)
+	version = getattr(socks, 'SOCKS%s'%match.group(1))
+	try:
+		host, port = parsed.netloc.split(':')
+	except ValueError:
+		_print(_socks_fmt_err)
+		sys.exit(1)
+	return SOCKSConfig(version, host, int(port))
 
 HTTP_FORMAT = r'^https?$'
 _http_fmt_err = 'HTTP proxy host must be in the format http(s)://example.com:8080'
 def parse_http(line):
-    parsed = urlparse(line)
-    match = re.match(HTTP_FORMAT, parsed.scheme)
-    if not match:
-        _print(_http_fmt_err)
-        sys.exit(1)
-    try:
-        host, port = parsed.netloc.split(':')
-    except ValueError:
-        _print(_http_fmt_err)
-        sys.exit(1)
-    proto = parsed.scheme
-    return HTTPConfig(proto, host, int(port))
+	parsed = urlparse(line)
+	match = re.match(HTTP_FORMAT, parsed.scheme)
+	if not match:
+		_print(_http_fmt_err)
+		sys.exit(1)
+	try:
+		host, port = parsed.netloc.split(':')
+	except ValueError:
+		_print(_http_fmt_err)
+		sys.exit(1)
+	proto = parsed.scheme
+	return HTTPConfig(proto, host, int(port))
 
 def proxy(value):
-    if value == 'None':
-        return None
-    if re.match(SOCKS_FORMAT[:-1], value):
-        conf = parse_socks(value)
-        return SocksiPyHandler(*conf)
-    elif re.match(HTTP_FORMAT[:1], value):
-        conf = parse_http(value)
-        return ProxyHandler({
-                    conf.proto: '{host}{port}'.format(
-                        host=conf.host,
-                        port=conf.port
-                    )
-                })
-    else:
-        _print('Invalid value for proxy host: %s'%value)
-        _print(_http_fmt_err)
-        _print(_socks_fmt_err)
-        sys.exit(1)
+	if value == 'None':
+		return None
+	if re.match(SOCKS_FORMAT[:-1], value):
+		conf = parse_socks(value)
+		return SocksiPyHandler(*conf)
+	elif re.match(HTTP_FORMAT[:1], value):
+		conf = parse_http(value)
+		return ProxyHandler({
+					conf.proto: '{host}{port}'.format(
+						host=conf.host,
+						port=conf.port
+					)
+				})
+	else:
+		_print('Invalid value for proxy host: %s'%value)
+		_print(_http_fmt_err)
+		_print(_socks_fmt_err)
+		sys.exit(1)
 
 def custom_prop(value):
-    if not '=' in value:
-        _print('Custom properties must be in the format: myprop=value')
-        sys.exit(1)
-    return value.split('=')
+	if not '=' in value:
+		_print('Custom properties must be in the format: myprop=value')
+		sys.exit(1)
+	return value.split('=')
 
 def get_args(conf):
-    parser = argparse.ArgumentParser(
-        prog=os.path.basename(sys.argv[0]),
-        description='CLI interface for Eve')
-    parser.add_argument('-p', '--platform', action='store')
-    parser.add_argument('-r', '--repo', action='store')
-    parser.add_argument('--proxy', action='store', type=proxy,
-        help='Direct traffic through a SOCKS or HTTP proxy. Must be in the format socks(4|5)://host:port or http(s)://host:port')
-    parser.add_argument('--no-cookies', action='store_false', dest='persistent_cookies', help='Disable persistent cookies for this session')
+	parser = argparse.ArgumentParser(
+		prog=os.path.basename(sys.argv[0]),
+		description='CLI interface for Eve')
+	parser.add_argument('-p', '--platform', action='store')
+	parser.add_argument('-r', '--repo', action='store')
+	parser.add_argument('--proxy', action='store', type=proxy,
+		help='Direct traffic through a SOCKS or HTTP proxy. Must be in the format socks(4|5)://host:port or http(s)://host:port')
+	parser.add_argument('--no-cookies', action='store_false', dest='persistent_cookies', help='Disable persistent cookies for this session')
 
-    # Load defaults from config file
-    if conf.has_section('defaults'):
-        for (key, value) in conf.items('defaults'):
-            parser.set_defaults(**{key:value})
-    # Special handling for the auth token as it depends on the default platform
-    if conf.has_option('defaults', 'platform'):
-        platform = conf.get('defaults', 'platform')
+	# Load defaults from config file
+	if conf.has_section('defaults'):
+		for (key, value) in conf.items('defaults'):
+			parser.set_defaults(**{key:value})
+	# Special handling for the auth token as it depends on the default platform
+	if conf.has_option('defaults', 'platform'):
+		platform = conf.get('defaults', 'platform')
 
 
 
-    subparsers = parser.add_subparsers(title='subcommands')
+	subparsers = parser.add_subparsers(title='subcommands')
 
-    # Start interactive configuration
-    parser_configure = subparsers.add_parser('configure', help='Bootstrap CLI configuration')
-    parser_configure.set_defaults(func=partial(configure, conf))
+	# Start interactive configuration
+	parser_configure = subparsers.add_parser('configure', help='Bootstrap CLI configuration')
+	parser_configure.set_defaults(func=partial(configure, conf))
 
-    # List running builds
-    parser_builds = subparsers.add_parser('builds', help='List all builds and statuses.')
-    parser_builds.set_defaults(func=list_builds)
+	# List running builds
+	parser_builds = subparsers.add_parser('builds', help='List all builds and statuses.')
+	parser_builds.set_defaults(func=list_builds)
 
-    # Get the status of a particular build
-    parser_status = subparsers.add_parser('status', help='Get the status of a Eve build')
-    parser_status.add_argument('build', action='store', type=int, help='Build number to query')
-    parser_status.add_argument('-f', '--follow', action='store_true', help='Wait for the build to finish, and report its status.')
-    parser_status.add_argument('-v', '--verbose', action='store_true', help='Output more detailed build information.')
-    parser_status.set_defaults(func=get_build_status)
+	# Get the status of a particular build
+	parser_status = subparsers.add_parser('status', help='Get the status of a Eve build')
+	parser_status.add_argument('build', action='store', type=int, help='Build number to query')
+	parser_status.add_argument('-f', '--follow', action='store_true', help='Wait for the build to finish, and report its status.')
+	parser_status.add_argument('-v', '--verbose', action='store_true', help='Output more detailed build information.')
+	parser_status.set_defaults(func=get_build_status)
 
-    # Restart a build
-    parser_restart = subparsers.add_parser('restart', help='Restart an Eve build')
-    parser_restart.add_argument('-w', '--wait', action='store_true', help='Wait for the build to start, and report its build number.')
-    parser_restart.add_argument('-f', '--follow', action='store_true', help='Wait for the build to finish, and report its status.')
-    parser_restart.add_argument('build', action='store', type=int, help='Build number to restart')
-    parser_restart.add_argument('-v', '--verbose', action='store_true', help='Output more detailed build information.')
-    parser_restart.set_defaults(func=restart_build)
+	# Restart a build
+	parser_restart = subparsers.add_parser('restart', help='Restart an Eve build')
+	parser_restart.add_argument('-w', '--wait', action='store_true', help='Wait for the build to start, and report its build number.')
+	parser_restart.add_argument('-f', '--follow', action='store_true', help='Wait for the build to finish, and report its status.')
+	parser_restart.add_argument('build', action='store', type=int, help='Build number to restart')
+	parser_restart.add_argument('-v', '--verbose', action='store_true', help='Output more detailed build information.')
+	parser_restart.set_defaults(func=restart_build)
 
-    # Watch a running build
-    parser_watch = subparsers.add_parser('watch', help='Watch an Eve build, restarting it if it fails.')
-    parser_watch.add_argument('build', action='store', type=int, help='Build number to watch')
-    parser_watch.add_argument('-x', '--retries', action='store', type=int, help='Max number of times to restart a build. -1 == infinite')
-    parser_watch.add_argument('-v', '--verbose', action='store_true', help='Output more detailed build information.')
-    parser_watch.set_defaults(func=watch_build, follow=True, retries=3)
+	# Watch a running build
+	parser_watch = subparsers.add_parser('watch', help='Watch an Eve build, restarting it if it fails.')
+	parser_watch.add_argument('build', action='store', type=int, help='Build number to watch')
+	parser_watch.add_argument('-x', '--retries', action='store', type=int, help='Max number of times to restart a build. -1 == infinite')
+	parser_watch.add_argument('-v', '--verbose', action='store_true', help='Output more detailed build information.')
+	parser_watch.set_defaults(func=watch_build, follow=True, retries=3)
 
-    # Force start a build
-    parser_force = subparsers.add_parser('force', help='Force start an Eve build')
-    parser_force.add_argument('-b', '--branch', action='store', help='Build from this branch instead of the default.', required=True)
-    parser_force.add_argument('-s', '--stage', action='store', help='Start this stage instead of "pre-merge"', default='pre-merge')
-    parser_force.add_argument('-w', '--wait', action='store_true', help='Wait for the build to start, and report its build number.')
-    parser_force.add_argument('-f', '--follow', action='store_true', help='Wait for the build to finish, and report its status')
-    parser_force.add_argument('-v', '--verbose', action='store_true', help='Output more detailed build information.')
-    parser_force.add_argument('-e', '--extra', action='append', type=custom_prop, help='Set custom properties on the build', metavar='VALUE', default=[])
-    parser_force.set_defaults(func=force_start)
+	# Force start a build
+	parser_force = subparsers.add_parser('force', help='Force start an Eve build')
+	parser_force.add_argument('-b', '--branch', action='store', help='Build from this branch instead of the default.', required=True)
+	parser_force.add_argument('-s', '--stage', action='store', help='Start this stage instead of "pre-merge"', default='pre-merge')
+	parser_force.add_argument('-w', '--wait', action='store_true', help='Wait for the build to start, and report its build number.')
+	parser_force.add_argument('-f', '--follow', action='store_true', help='Wait for the build to finish, and report its status')
+	parser_force.add_argument('-v', '--verbose', action='store_true', help='Output more detailed build information.')
+	parser_force.add_argument('-e', '--extra', action='append', type=custom_prop, help='Set custom properties on the build', metavar='VALUE', default=[])
+	parser_force.set_defaults(func=force_start)
 
-    args = parser.parse_args()
-    # Python2 doesn't respect a None default, so use hasattr instead
-    if not hasattr(args, 'func'):
-        return parser.parse_args(['--help'])
-    if args.platform == 'github' and conf.has_option(platform, 'token') and getattr(args, 'token', None) is None:
-        args.token = conf.get('github', 'token')
-    elif args.platform == 'bitbucket': # bitbucket doesn't have a token
-        for arg in ['username', 'password', 'consumer_id']:
-            if conf.has_option('bitbucket', arg) and not getattr(args, arg, None):
-                setattr(args, arg, conf.get('bitbucket', arg))
-        if conf.has_option('bitbucket', 'token'):
-                setattr(args, 'token', )
-                # parser.set_defaults(**{ arg: conf.get(platform , arg) })
-    return args
+	args = parser.parse_args()
+	# Python2 doesn't respect a None default, so use hasattr instead
+	if not hasattr(args, 'func'):
+		return parser.parse_args(['--help'])
+	if args.platform == 'github' and conf.has_option(platform, 'token') and getattr(args, 'token', None) is None:
+		args.token = conf.get('github', 'token')
+	elif args.platform == 'bitbucket': # bitbucket doesn't have a token
+		for arg in ['username', 'password', 'consumer_id']:
+			if conf.has_option('bitbucket', arg) and not getattr(args, arg, None):
+				setattr(args, arg, conf.get('bitbucket', arg))
+		if conf.has_option('bitbucket', 'token'):
+				setattr(args, 'token', )
+				# parser.set_defaults(**{ arg: conf.get(platform , arg) })
+	return args
 
 
 _client_info_error = 'You must define a {var} by using the --{var} flag or by configuring a default'
 def with_client(f):
-    def inner(args):
-        # Do some validation
-        if args.platform is None:
-            _print(_client_info_error.format(var='platform'))
-            sys.exit(1)
-        if args.repo is None:
-            _print(_client_info_error.format(var='repo'))
-            sys.exit(1)
-        if args.platform == 'github' and args.token is None:
-            _print(_client_info_error.format(var='token'))
-            sys.exit(1)
-        elif args.platform == 'bitbucket':
-            for arg in ['username', 'password', 'consumer_id']:
-                if not getattr(args, arg, None):
-                    _print(_client_info_error.format(var=arg.replace('_', '-')))
-                    sys.exit(1)
-        # Load our cookies
-        if args.persistent_cookies is not False:
-            if args.persistent_cookies is True or args.persistent_cookies.lower() in TRUTHY:
-                persistent_cookies  = True
-                cj = LWPCookieJar(DEFAULT_COOKIE_PATH)
-                if os.path.exists(DEFAULT_COOKIE_PATH):
-                    cj.load(ignore_discard=True)
-        else:
-            persistent_cookies = False
-            cj = CookieJar()
+	def inner(args):
+		# Do some validation
+		if args.platform is None:
+			_print(_client_info_error.format(var='platform'))
+			sys.exit(1)
+		if args.repo is None:
+			_print(_client_info_error.format(var='repo'))
+			sys.exit(1)
+		if args.platform == 'github' and args.token is None:
+			_print(_client_info_error.format(var='token'))
+			sys.exit(1)
+		elif args.platform == 'bitbucket':
+			for arg in ['username', 'password', 'consumer_id']:
+				if not getattr(args, arg, None):
+					_print(_client_info_error.format(var=arg.replace('_', '-')))
+					sys.exit(1)
+		# Load our cookies
+		if args.persistent_cookies is not False:
+			if args.persistent_cookies is True or args.persistent_cookies.lower() in TRUTHY:
+				persistent_cookies  = True
+				cj = LWPCookieJar(DEFAULT_COOKIE_PATH)
+				if os.path.exists(DEFAULT_COOKIE_PATH):
+					cj.load(ignore_discard=True)
+		else:
+			persistent_cookies = False
+			cj = CookieJar()
 
-        # Build our session
-        if args.platform == 'github':
-            session = GithubEveSession(args.platform, args.repo, cj, proxy=args.proxy, token=args.token, persistent_cookies=persistent_cookies)
-        elif args.platform == 'bitbucket':
-            session = BitbucketEveSession(args.platform, args.repo, cj, proxy=args.proxy, username=args.username, password=args.password, consumer_id=args.consumer_id, persistent_cookies=persistent_cookies)
-        eve_client = EveClient(session)
-        return f(eve_client, args)
-    return inner
+		# Build our session
+		if args.platform == 'github':
+			session = GithubEveSession(args.platform, args.repo, cj, proxy=args.proxy, token=args.token, persistent_cookies=persistent_cookies)
+		elif args.platform == 'bitbucket':
+			session = BitbucketEveSession(args.platform, args.repo, cj, proxy=args.proxy, username=args.username, password=args.password, consumer_id=args.consumer_id, persistent_cookies=persistent_cookies)
+		eve_client = EveClient(session)
+		return f(eve_client, args)
+	return inner
 
 STATUS_OPTIONS = [
-    '#{number}:\t\t{status}',
-    'Complete:\t{complete}',
-    'Duration:\t{duration}',
-    'Started:\t{started}',
-    'Finished:\t{finished}',
-    'Passed:\t\t{passed}'
-    ]
+	'#{number}:\t\t{status}',
+	'Complete:\t{complete}',
+	'Duration:\t{duration}',
+	'Started:\t{started}',
+	'Finished:\t{finished}',
+	'Passed:\t\t{passed}'
+	]
 def log_status(status, args):
-    tmpl = STATUS_OPTIONS[0]
-    started_at = datetime.utcfromtimestamp(status['started_at'])
-    kwargs = {
-        'number': status['number'],
-        'status': status['state_string'],
-    }
-    if args.verbose:
-        kwargs['complete'] = str(status['complete']).upper()
-        kwargs['started'] = started_at.isoformat()
-        if status['complete']:
-            tmpl = '\n'.join(STATUS_OPTIONS)
-            complete_at = datetime.utcfromtimestamp(status['complete_at'])
-            kwargs['finished'] = complete_at.isoformat()
-            kwargs['duration'] = timedelta(seconds=(complete_at - started_at).total_seconds())
-            kwargs['passed'] = str(status['results'] == 0).upper()
-        else:
-            tmpl = '\n'.join(STATUS_OPTIONS[:4])
-            kwargs['duration'] = timedelta(
-                seconds=math.ceil(
-                    (datetime.utcnow() - started_at).total_seconds()
-                )
-            )
-    _print(tmpl.format(**kwargs))
+	tmpl = STATUS_OPTIONS[0]
+	started_at = datetime.utcfromtimestamp(status['started_at'])
+	kwargs = {
+		'number': status['number'],
+		'status': status['state_string'],
+	}
+	if args.verbose:
+		kwargs['complete'] = str(status['complete']).upper()
+		kwargs['started'] = started_at.isoformat()
+		if status['complete']:
+			tmpl = '\n'.join(STATUS_OPTIONS)
+			complete_at = datetime.utcfromtimestamp(status['complete_at'])
+			kwargs['finished'] = complete_at.isoformat()
+			kwargs['duration'] = timedelta(seconds=(complete_at - started_at).total_seconds())
+			kwargs['passed'] = str(status['results'] == 0).upper()
+		else:
+			tmpl = '\n'.join(STATUS_OPTIONS[:4])
+			kwargs['duration'] = timedelta(
+				seconds=math.ceil(
+					(datetime.utcnow() - started_at).total_seconds()
+				)
+			)
+	_print(tmpl.format(**kwargs))
 
 def monitor_build(f):
-    def inner(eve, args):
-        build = f(eve, args)
-        if not build:
-            return
-        first_run = True
-        for status in eve.poll_build(interval=1, **build):
-            if args.follow:
-                if status['complete']:
-                    return log_status(status, args)
-                elif first_run:
-                    first_run = False
-                    _print('Waiting for build #%s to finish...'%status['number'])
-            else:
-                return log_status(status, args)
-    return inner
+	def inner(eve, args):
+		build = f(eve, args)
+		if not build:
+			return
+		first_run = True
+		for status in eve.poll_build(interval=1, **build):
+			if args.follow:
+				if status['complete']:
+					return log_status(status, args)
+				elif first_run:
+					first_run = False
+					_print('Waiting for build #%s to finish...'%status['number'])
+			else:
+				return log_status(status, args)
+	return inner
 
 @with_client
 @monitor_build
 def get_build_status(eve, args):
-    return dict(build_number=args.build)
+	return dict(build_number=args.build)
 
 @with_client
 @monitor_build
 def restart_build(eve, args):
-    brid = eve.restart_build(build_number=args.build)
-    _print('Restarted build. New build request id: #{}'.format(brid))
-    if args.wait:
-        return { 'build_request_id': brid }
+	brid = eve.restart_build(build_number=args.build)
+	_print('Restarted build. New build request id: #{}'.format(brid))
+	if args.wait:
+		return { 'build_request_id': brid }
 
 @with_client
 def watch_build(eve, args):
-    current_build = { 'build_number': args.build }
-    retries = 0
-    while True:
-        for status in eve.poll_build(**current_build):
-            if status.get('complete'):
-                log_status(status, args)
-                if status.get('state_string') == 'build successful':
-                    return
-                else:
-                    if args.retries != -1 and retries >= args.retries:
-                        return
-                    retries += 1
-                    _print('Restarting build... ({}/{})'.format(
-                        retries, args.retries if args.retries != -1 else 'infinite'
-                    ))
-                    brid = eve.restart_build(**current_build)
-                    current_build = {'build_request_id': brid}
+	current_build = { 'build_number': args.build }
+	retries = 0
+	while True:
+		for status in eve.poll_build(**current_build):
+			if status.get('complete'):
+				log_status(status, args)
+				if status.get('state_string') == 'build successful':
+					return
+				else:
+					if args.retries != -1 and retries >= args.retries:
+						return
+					retries += 1
+					_print('Restarting build... ({}/{})'.format(
+						retries, args.retries if args.retries != -1 else 'infinite'
+					))
+					brid = eve.restart_build(**current_build)
+					current_build = {'build_request_id': brid}
 
 @with_client
 @monitor_build
 def force_start(eve, args):
-    props = {}
-    for i, (name, value) in enumerate(args.extra):
-        props['prop0%i_name'%i] = name
-        props['prop0%i_value'%i] = value
-    build_request_id = eve.force_start(args.branch, args.stage, extra_props=props)
-    if not args.wait:
-        status_info = dict(rtype='', number=build_request_id)
-        _print(
-        'Created build request #{number} at stage {stage} on branch {branch}'.format(
-            number=build_request_id,
-            stage=args.stage,
-            branch=args.branch
-            )
-        )
-    else:
-        return { 'build_request_id': build_request_id }
+	props = {}
+	for i, (name, value) in enumerate(args.extra):
+		props['prop0%i_name'%i] = name
+		props['prop0%i_value'%i] = value
+	build_request_id = eve.force_start(args.branch, args.stage, extra_props=props)
+	if not args.wait:
+		status_info = dict(rtype='', number=build_request_id)
+		_print(
+		'Created build request #{number} at stage {stage} on branch {branch}'.format(
+			number=build_request_id,
+			stage=args.stage,
+			branch=args.branch
+			)
+		)
+	else:
+		return { 'build_request_id': build_request_id }
 
 STAGE_FMT = '#{number} started at: {start} status: {status}'
 @with_client
 def list_builds(eve, args):
-    for build in eve.list_builds(stage='bootstrap'):
-        ts = datetime.utcfromtimestamp(
-            build['started_at']).isoformat()
-        _print(STAGE_FMT.format(
-            number=build['number'],
-            start=ts,
-            status=build['state_string']
-        ))
+	for build in eve.list_builds(stage='bootstrap'):
+		ts = datetime.utcfromtimestamp(
+			build['started_at']).isoformat()
+		_print(STAGE_FMT.format(
+			number=build['number'],
+			start=ts,
+			status=build['state_string']
+		))
 
 
 if __name__ == "__main__":
-    conf = load_config()
-    args = get_args(conf)
-    args.func(args)
+	conf = load_config()
+	args = get_args(conf)
+	args.func(args)
