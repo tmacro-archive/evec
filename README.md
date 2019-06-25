@@ -10,18 +10,19 @@ CLI interface for Eve
 optional arguments:
   -h, --help            show this help message and exit
   -p PLATFORM, --platform PLATFORM
-  -r REPO, --repo REPO
-  --proxy PROXY         Direct traffic through a SOCKS of HTTP proxy. Must be
+                        Platform hosting the repository.
+  -r REPO, --repo REPO  Repository to operate on.
+  --proxy PROXY         Direct traffic through a SOCKS or HTTP proxy. Must be
                         in the format socks(4|5)://host:port or
-                        http(s)://host:port
-  --no-cookies          Disable persistent cookies for this session
+                        http(s)://host:port.
+  --no-cookies          Disable persistent cookies for this session.
 
 subcommands:
   {configure,builds,status,restart,watch,force}
-    configure           Bootstrap CLI configuration
-    builds              List all running builds and statuses.
-    status              Get the status of a Eve build
-    restart             Restart an Eve build
+    configure           Bootstrap CLI configuration.
+    builds              List all builds and statuses.
+    status              Get the status of a Eve build.
+    restart             Restart an Eve build.
     watch               Watch an Eve build, restarting it if it fails.
     force               Force start an Eve build
 ```
