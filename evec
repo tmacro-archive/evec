@@ -30,10 +30,10 @@ PY2 = sys.version_info[0] == 2
 # Sort out library differences for HTTP
 if PY2:
 	from cookielib import CookieJar, LWPCookieJar
-	from urllib2 import Request, HTTPError, build_opener, HTTPCookieProcessor, urlopen, HTTPRedirectHandler
+	from urllib2 import Request, HTTPError, build_opener, HTTPCookieProcessor, urlopen, HTTPRedirectHandler, ProxyHandler
 	from urlparse import urlparse, parse_qs
 else:
-	from urllib.request import Request, build_opener, HTTPCookieProcessor, urlopen, HTTPRedirectHandler
+	from urllib.request import Request, build_opener, HTTPCookieProcessor, urlopen, HTTPRedirectHandler, ProxyHandler
 	from urllib.error import HTTPError
 	from urllib.parse import urlparse, parse_qs
 	from http.cookiejar import CookieJar, LWPCookieJar
@@ -174,7 +174,6 @@ def get_bitbucket_access_token(username, password, consumer):
 
 	"""
 	_print('Getting Bitbucket access token...')
-	print(username, password, consumer)
 	if PY2:
 		base64auth = base64.b64encode('%s:%s' % (username, password))
 	else:
@@ -188,7 +187,6 @@ def get_bitbucket_access_token(username, password, consumer):
 	try:
 		auth_code = opener.open(req)
 	except HTTPError as excp:
-		print(excp.file.read())
 		sys.exit('HTTP error: %s (%s)' % (excp.reason, excp.code))
 
 	if not isinstance(auth_code, str):
@@ -235,30 +233,18 @@ class EveSession(object):
 		)
 		return url.format(**data)
 
-	def _request(self,  method, url, data=None, headers=None, session=None, _failed=False, _no_auth=False):
+	def _request(self,  method, url, data=None, headers=None, session=None):
 		session = session if session is not None else self.session
 		req = Request(url, data=data)
 		if headers:
 			for (key, value) in headers.items():
 				req.add_header(key, value)
 		req.get_method = lambda: method.upper()
-		# If we're not saving cookies, we need to auth every time
-		# If _failed is set then we've gotten a 403 and need to
-		if not _no_auth and not self._persistent_cookies or _failed:
-			self._authenticate()
-		try:
-			res = session.open(req)
-		except HTTPError as err:
-			if err.code == 403:
-				if not self._persistent_cookies or _failed:
-					return err, None
-				return self._request(method, url, data, headers, session, _failed=True)
-			return err, None
-		return None, res
+		return session.open(req)
 
 	def _authenticate(self):
 		url = self._build_url(self._AUTH_FRAGMENT, {'token':self.token})
-		err, _ = self._request('GET', url, _no_auth=True)
+		err, _ = self._request('GET', url)
 		if err:
 			_print('Failed to authenticate to Eve!')
 			raise err
@@ -266,13 +252,23 @@ class EveSession(object):
 			self._cookiejar.save(ignore_discard=True)
 		_print('Authenticated to Eve successfully')
 
-	def _api_request(self, method, path, payload):
+	def _api_request(self, method, path, payload, _failed=False):
 		url = self._build_url(self._API_FRAGMENT, {'ver':2, 'path':path})
 		headers = {'Content-Type': 'application/json'}
 		data = json.dumps(payload)
 		if not PY2:
 			data = data.encode('utf-8')
-		return self._request(method, url, data=data, headers=headers)
+		if not self._persistent_cookies or _failed:
+			self._authenticate()
+		try:
+			res = self._request(method, url, data=data, headers=headers)
+		except HTTPError as err:        
+			if err and err.code == 403:
+				if not self._persistent_cookies or _failed:
+					return err, None
+				return self._api_request(method, path, payload, _failed=True)
+			return err, None
+		return None, res
 
 	def request(self, path, params={}, method='GET', is_json=True, rpc=None):
 		payload = {
@@ -454,7 +450,7 @@ def prompt(desc, default='', end=': '):
 			return None
 		return resp.strip()
 	except EOFError:
-		sys.exit(1)
+		sys.exit(1) 
 
 TRUTHY = [
 	'true',
@@ -623,7 +619,11 @@ def proxy(value):
 	elif re.match(HTTP_FORMAT[:1], value):
 		conf = parse_http(value)
 		return ProxyHandler({
-					conf.proto: '{host}{port}'.format(
+					'http': '{host}{port}'.format(
+						host=conf.host,
+						port=conf.port
+					),
+					'http': '{host}{port}'.format(
 						host=conf.host,
 						port=conf.port
 					)
