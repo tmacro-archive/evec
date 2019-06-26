@@ -26,6 +26,7 @@ def _print(msg, end = '\n'):
 	sys.stdout.write(str(msg) + end)
 
 PY2 = sys.version_info[0] == 2
+PY34 = sys.version_info[0] == 3 and sys.version_info[1] == 4
 
 # Sort out library differences for HTTP
 if PY2:
@@ -288,7 +289,7 @@ class EveSession(object):
 			_print(str(err))
 			raise err
 		if is_json:
-			return json.load(resp)
+			return json.loads(resp.read().decode('utf-8'))
 		else:
 			return resp.read()
 
