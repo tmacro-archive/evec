@@ -660,7 +660,7 @@ def get_args(conf):
 	parser.add_argument('--username', action='store', help='Bitbucket username')
 	parser.add_argument('--password', action='store', help='Bitbucket password')
 	parser.add_argument('--consumer-key', action='store', help='Bitbucket Consumer Key')
-	parser.add_argument('--version', action='store_const', const=print_version, dest='func')
+	parser.add_argument('--version', action='store_true', dest='version', default=False)
 
 	# Load defaults from config file
 	if conf.has_section('defaults'):
@@ -714,6 +714,9 @@ def get_args(conf):
 
 	args = parser.parse_args()
 	# Python2 doesn't respect a None default, so use hasattr instead
+	if args.version:
+		print_version()
+		sys.exit(0)
 	if not hasattr(args, 'func'):
 		return parser.parse_args(['--help'])
 	if args.platform == 'github' and conf.has_option(platform, 'token') and getattr(args, 'token', None) is None:
