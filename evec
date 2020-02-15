@@ -705,7 +705,7 @@ def get_args(conf):
 	# Force start a build
 	parser_force = subparsers.add_parser('force', help='Force start an Eve build', description='Force start an Eve build')
 	parser_force.add_argument('-b', '--branch', action='store', help='Build from this branch instead of the default.', required=True)
-	parser_force.add_argument('-s', '--stage', action='store', help='Start this stage instead of "pre-merge"', default='pre-merge.')
+	parser_force.add_argument('-s', '--stage', action='store', help='Start this stage instead of "pre-merge".', default='pre-merge')
 	parser_force.add_argument('-w', '--wait', action='store_true', help='Wait for the build to start, and report its build number.')
 	parser_force.add_argument('-f', '--follow', action='store_true', help='Wait for the build to finish, and report its status.')
 	parser_force.add_argument('-v', '--verbose', action='store_true', help='Output more detailed build information.')
